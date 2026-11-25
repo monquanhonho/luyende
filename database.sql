@@ -1,142 +1,112 @@
 -- ==========================================================
--- HỆ THỐNG WEB LUYỆN ĐỀ TRẮC NGHIỆM (TOÁN - ANH - LÝ - HÓA)
--- Phiên bản: 4.0 | Kho 8 Đề Sát Đề THPT Quốc Gia Các Năm (340 Câu)
---   * Môn Toán (2 đề): 50 câu - 90 phút - 0.20đ/câu (= 10.00đ)
---   * Tiếng Anh, Vật Lý, Hóa Học (mỗi môn 2 đề): 40 câu - 60 phút - 0.25đ/câu (= 10.00đ)
+-- SUPABASE (POSTGRESQL) DATABASE - EDUSMART LUYỆN ĐỀ 2026
+-- Đầy đủ 4 môn • 20 Đề thi • 590 Câu hỏi chuẩn hóa
+-- Dán toàn bộ nội dung file này vào Supabase -> SQL Editor -> Run
 -- ==========================================================
 
-CREATE DATABASE IF NOT EXISTS `webluyende` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE `webluyende`;
+DROP TABLE IF EXISTS attempt_answers CASCADE;
+DROP TABLE IF EXISTS exam_sessions CASCADE;
+DROP TABLE IF EXISTS exam_attempts CASCADE;
+DROP TABLE IF EXISTS questions CASCADE;
+DROP TABLE IF EXISTS exams CASCADE;
+DROP TABLE IF EXISTS subjects CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
 
-SET FOREIGN_KEY_CHECKS = 0;
-DROP TABLE IF EXISTS `attempt_answers`;
-DROP TABLE IF EXISTS `exam_sessions`;
-DROP TABLE IF EXISTS `exam_attempts`;
-DROP TABLE IF EXISTS `questions`;
-DROP TABLE IF EXISTS `exams`;
-DROP TABLE IF EXISTS `subjects`;
-DROP TABLE IF EXISTS `users`;
-SET FOREIGN_KEY_CHECKS = 1;
+CREATE TABLE users (
+  id BIGSERIAL PRIMARY KEY,
+  username VARCHAR(50) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  fullname VARCHAR(100) NOT NULL,
+  email VARCHAR(100) DEFAULT NULL,
+  class_name VARCHAR(50) DEFAULT 'Học sinh',
+  role VARCHAR(20) NOT NULL DEFAULT 'student' CHECK (role IN ('admin', 'student')),
+  last_active_at TIMESTAMPTZ DEFAULT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
--- 1. Bảng Người dùng (Phân quyền: admin / student)
-CREATE TABLE `users` (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `username` VARCHAR(50) NOT NULL UNIQUE,
-  `password` VARCHAR(255) NOT NULL,
-  `fullname` VARCHAR(100) NOT NULL,
-  `email` VARCHAR(100) DEFAULT NULL,
-  `class_name` VARCHAR(50) DEFAULT 'Học sinh',
-  `role` ENUM('admin', 'student') NOT NULL DEFAULT 'student',
-  `last_active_at` TIMESTAMP NULL DEFAULT NULL,
-  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE subjects (
+  id BIGSERIAL PRIMARY KEY,
+  code VARCHAR(20) NOT NULL UNIQUE,
+  name VARCHAR(100) NOT NULL,
+  description VARCHAR(255) NOT NULL,
+  icon VARCHAR(50) NOT NULL,
+  color_theme VARCHAR(30) NOT NULL,
+  gradient VARCHAR(150) NOT NULL
+);
 
--- 2. Bảng Môn học (Toán, Tiếng Anh, Vật Lý, Hóa Học)
-CREATE TABLE `subjects` (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `code` VARCHAR(20) NOT NULL UNIQUE,
-  `name` VARCHAR(100) NOT NULL,
-  `description` VARCHAR(255) NOT NULL,
-  `icon` VARCHAR(50) NOT NULL,
-  `color_theme` VARCHAR(30) NOT NULL,
-  `gradient` VARCHAR(150) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE exams (
+  id BIGSERIAL PRIMARY KEY,
+  subject_id BIGINT NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+  title VARCHAR(200) NOT NULL,
+  description TEXT,
+  duration_minutes INT NOT NULL DEFAULT 60,
+  level VARCHAR(50) NOT NULL DEFAULT 'Chuẩn THPT QG',
+  is_active SMALLINT NOT NULL DEFAULT 1,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
--- 3. Bảng Đề thi (Chuẩn THPT QG)
-CREATE TABLE `exams` (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `subject_id` INT NOT NULL,
-  `title` VARCHAR(200) NOT NULL,
-  `description` TEXT,
-  `duration_minutes` INT NOT NULL DEFAULT 60,
-  `level` ENUM('Cơ bản', 'Thông hiểu', 'Vận dụng cao', 'Chuẩn THPT QG') NOT NULL DEFAULT 'Chuẩn THPT QG',
-  `is_active` TINYINT(1) NOT NULL DEFAULT 1,
-  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (`subject_id`) REFERENCES `subjects`(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE questions (
+  id BIGSERIAL PRIMARY KEY,
+  exam_id BIGINT NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
+  question_type VARCHAR(20) NOT NULL DEFAULT 'mcq' CHECK (question_type IN ('mcq', 'true_false', 'short_answer')),
+  question_text TEXT NOT NULL,
+  option_a TEXT NULL,
+  option_b TEXT NULL,
+  option_c TEXT NULL,
+  option_d TEXT NULL,
+  correct_option VARCHAR(50) NOT NULL,
+  explanation TEXT,
+  points_value NUMERIC(4,2) NOT NULL DEFAULT 0.25,
+  difficulty VARCHAR(30) NOT NULL DEFAULT 'Nhận biết',
+  sort_order INT DEFAULT 1
+);
 
--- 4. Bảng Câu hỏi (hỗ trợ đa dạng + thang điểm 0.20 / 0.25 + mức độ)
-CREATE TABLE `questions` (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `exam_id` INT NOT NULL,
-  `question_type` ENUM('mcq', 'true_false', 'short_answer') NOT NULL DEFAULT 'mcq',
-  `question_text` TEXT NOT NULL,
-  `option_a` TEXT NULL,
-  `option_b` TEXT NULL,
-  `option_c` TEXT NULL,
-  `option_d` TEXT NULL,
-  `correct_option` VARCHAR(50) NOT NULL,
-  `explanation` TEXT,
-  `points_value` DECIMAL(4,2) NOT NULL DEFAULT 0.25,
-  `difficulty` ENUM('Nhận biết', 'Thông hiểu', 'Vận dụng', 'Vận dụng cao') NOT NULL DEFAULT 'Nhận biết',
-  `sort_order` INT DEFAULT 1,
-  FOREIGN KEY (`exam_id`) REFERENCES `exams`(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE exam_attempts (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  exam_id BIGINT NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
+  score NUMERIC(4,2) NOT NULL DEFAULT 0.00,
+  correct_count INT NOT NULL DEFAULT 0,
+  total_questions INT NOT NULL DEFAULT 0,
+  time_spent_seconds INT NOT NULL DEFAULT 0,
+  tab_switch_count INT NOT NULL DEFAULT 0,
+  completed_at TIMESTAMPTZ DEFAULT NOW()
+);
 
--- 5. Bảng Lịch sử làm bài của học sinh
-CREATE TABLE `exam_attempts` (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `user_id` INT NOT NULL,
-  `exam_id` INT NOT NULL,
-  `score` DECIMAL(4,2) NOT NULL DEFAULT 0.00,
-  `correct_count` INT NOT NULL DEFAULT 0,
-  `total_questions` INT NOT NULL DEFAULT 0,
-  `time_spent_seconds` INT NOT NULL DEFAULT 0,
-  `tab_switch_count` INT NOT NULL DEFAULT 0,
-  `completed_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
-  FOREIGN KEY (`exam_id`) REFERENCES `exams`(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE attempt_answers (
+  id BIGSERIAL PRIMARY KEY,
+  attempt_id BIGINT NOT NULL REFERENCES exam_attempts(id) ON DELETE CASCADE,
+  question_id BIGINT NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
+  selected_option VARCHAR(50) DEFAULT NULL,
+  is_correct SMALLINT NOT NULL DEFAULT 0,
+  earned_points NUMERIC(4,2) NOT NULL DEFAULT 0.00
+);
 
--- 6. Bảng Chi tiết đáp án & điểm từng câu trong mỗi lần thi
-CREATE TABLE `attempt_answers` (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `attempt_id` INT NOT NULL,
-  `question_id` INT NOT NULL,
-  `selected_option` VARCHAR(50) DEFAULT NULL,
-  `is_correct` TINYINT(1) NOT NULL DEFAULT 0,
-  `earned_points` DECIMAL(4,2) NOT NULL DEFAULT 0.00,
-  FOREIGN KEY (`attempt_id`) REFERENCES `exam_attempts`(`id`) ON DELETE CASCADE,
-  FOREIGN KEY (`question_id`) REFERENCES `questions`(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE exam_sessions (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  exam_id BIGINT NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
+  started_at TIMESTAMPTZ DEFAULT NOW(),
+  last_heartbeat TIMESTAMPTZ DEFAULT NOW(),
+  elapsed_seconds INT NOT NULL DEFAULT 0,
+  answered_count INT NOT NULL DEFAULT 0,
+  total_questions INT NOT NULL DEFAULT 0,
+  tab_switch_count INT NOT NULL DEFAULT 0,
+  status VARCHAR(20) NOT NULL DEFAULT 'in_progress' CHECK (status IN ('in_progress', 'submitted'))
+);
 
--- 7. Bảng Theo dõi phiên làm bài trực tiếp (Giám sát học sinh)
-CREATE TABLE `exam_sessions` (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `user_id` INT NOT NULL,
-  `exam_id` INT NOT NULL,
-  `started_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  `last_heartbeat` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  `elapsed_seconds` INT NOT NULL DEFAULT 0,
-  `answered_count` INT NOT NULL DEFAULT 0,
-  `total_questions` INT NOT NULL DEFAULT 0,
-  `tab_switch_count` INT NOT NULL DEFAULT 0,
-  `status` ENUM('in_progress', 'submitted') NOT NULL DEFAULT 'in_progress',
-  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
-  FOREIGN KEY (`exam_id`) REFERENCES `exams`(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+INSERT INTO users (id, username, password_hash, fullname, email, class_name, role) VALUES
+(1, 'admin', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'Thầy Giáo Quản Trị (Admin)', 'admin@edusmart.vn', 'Ban Chuyên Môn', 'admin'),
+(2, 'hocsinh', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'Nguyễn Minh Khôi', 'minhkhoi@edusmart.vn', 'Học sinh', 'student'),
+(3, 'linhchi', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'Trần Ngọc Linh Chi', 'linhchi@edusmart.vn', 'Học sinh', 'student');
 
--- ==========================================================
--- TÀI KHOẢN MẪU (admin / 123456 | hocsinh / 123456)
--- ==========================================================
-INSERT INTO `users` (`username`, `password`, `fullname`, `email`, `class_name`, `role`) VALUES
-('admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Thầy Giáo Quản Trị (Admin)', 'admin@edusmart.vn', 'Ban Chuyên Môn', 'admin'),
-('hocsinh', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Nguyễn Minh Khôi', 'minhkhoi@edusmart.vn', 'Lớp 12A1 - Chuyên Tự Nhiên', 'student'),
-('linhchi', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Trần Ngọc Linh Chi', 'linhchi@edusmart.vn', 'Lớp 12D1 - Khối D', 'student');
-
--- ==========================================================
--- 4 BỘ MÔN CHÍNH
--- ==========================================================
-INSERT INTO `subjects` (`id`, `code`, `name`, `description`, `icon`, `color_theme`, `gradient`) VALUES
+INSERT INTO subjects (id, code, name, description, icon, color_theme, gradient) VALUES
 (1, 'TOAN', 'Toán Học', '22 câu (12 TN • 4 Đ/S • 6 TLN) • 90 phút — Chuẩn đề THPT 2026', 'fa-square-root-variable', 'blue', 'from-blue-600 to-indigo-600'),
 (2, 'ANH', 'Tiếng Anh', '40 câu • 50 phút • 0.25đ/câu — Chuẩn đề thi tốt nghiệp THPT 2026', 'fa-earth-americas', 'emerald', 'from-emerald-500 to-teal-600'),
 (3, 'LY', 'Vật Lý', '28 câu (18 TN • 4 Đ/S • 6 TLN) • 50 phút — Chuẩn đề THPT 2026', 'fa-atom', 'amber', 'from-amber-500 to-orange-600'),
 (4, 'HOA', 'Hóa Học', '28 câu (18 TN • 4 Đ/S • 6 TLN) • 50 phút — Chuẩn đề THPT 2026', 'fa-flask-vial', 'rose', 'from-rose-500 to-pink-600');
 
--- ==========================================================
--- 8 ĐỀ THI CHUẨN THPT QUỐC GIA
--- ==========================================================
-INSERT INTO `exams` (`id`, `subject_id`, `title`, `description`, `duration_minutes`, `level`, `is_active`) VALUES
+INSERT INTO exams (id, subject_id, title, description, duration_minutes, level, is_active) VALUES
 (1, 1, 'Đề Thi Thử THPT Quốc Gia 2026 Môn Toán - Đề Số 01', '22 câu – 90 phút chuẩn cấu trúc mới 2026: Phần I (12 câu TN ABCD - 3.0đ), Phần II (4 câu Đúng/Sai - 4.0đ), Phần III (6 câu Trả lời ngắn - 3.0đ).', 90, 'Chuẩn THPT QG', 1),
 (2, 1, 'Đề Thi Thử THPT Quốc Gia 2026 Môn Toán - Đề Số 02', '22 câu – 90 phút chuẩn cấu trúc mới 2026: Hàm số, Tích phân, Thống kê ghép nhóm, Xác suất có điều kiện - Bayes, Hình không gian & Oxyz.', 90, 'Chuẩn THPT QG', 1),
 (3, 2, 'Đề Thi Thử THPT Quốc Gia 2026 Môn Tiếng Anh - Đề Số 01', '40 câu – 50 phút (0.25đ/câu). Bám sát cấu trúc mới: Đọc điền quảng cáo, tờ rơi, sắp xếp hội thoại/đoạn văn, điền khuyết ngữ cảnh và 2 bài đọc hiểu.', 50, 'Chuẩn THPT QG', 1),
@@ -144,369 +114,7 @@ INSERT INTO `exams` (`id`, `subject_id`, `title`, `description`, `duration_minut
 (5, 3, 'Đề Thi Thử THPT Quốc Gia 2026 Môn Vật Lý - Đề Số 01', '28 câu – 50 phút chuẩn cấu trúc mới 2026: Phần I (18 câu TN ABCD - 4.5đ), Phần II (4 câu Đúng/Sai - 4.0đ), Phần III (6 câu Trả lời ngắn - 1.5đ).', 50, 'Chuẩn THPT QG', 1),
 (6, 3, 'Đề Thi Thử THPT Quốc Gia 2026 Môn Vật Lý - Đề Số 02', '28 câu – 50 phút chuẩn cấu trúc mới 2026: Vật lý nhiệt, Khí lí tưởng, Dao động & Sóng, Từ trường, Điện xoay chiều & Hạt nhân.', 50, 'Chuẩn THPT QG', 1),
 (7, 4, 'Đề Thi Thử THPT Quốc Gia 2026 Môn Hóa Học - Đề Số 01', '28 câu – 50 phút chuẩn cấu trúc mới 2026: Phần I (18 câu TN ABCD - 4.5đ), Phần II (4 câu Đúng/Sai - 4.0đ), Phần III (6 câu Trả lời ngắn - 1.5đ).', 50, 'Chuẩn THPT QG', 1),
-(8, 4, 'Đề Thi Thử THPT Quốc Gia 2026 Môn Hóa Học - Đề Số 02', '28 câu – 50 phút chuẩn cấu trúc mới 2026 (ĐKC 24.79 lít/mol): Este-Lipit, Cacbohidrat, Amin-Peptit, Pin điện hóa, Phức chất & Kim loại.', 50, 'Chuẩn THPT QG', 1);
-
--- ==========================================================
--- MÔN TOÁN - ĐỀ SỐ 01 (exam_id = 1): 22 CÂU - 90 PHÚT - TỔNG 10.00 ĐIỂM
--- Phần I: 12 câu mcq (0.25đ) | Phần II: 4 câu true_false (1.00đ) | Phần III: 6 câu short_answer (0.50đ)
--- ==========================================================
-INSERT INTO `questions` (`exam_id`, `question_type`, `question_text`, `option_a`, `option_b`, `option_c`, `option_d`, `correct_option`, `explanation`, `points_value`, `difficulty`, `sort_order`) VALUES
--- Phần I: Trắc nghiệm nhiều phương án lựa chọn (1 - 12)
-(1, 'mcq', 'Hàm số y = -x³ + 3x + 2 đồng biến trên khoảng nào dưới đây?', '(-1; 1)', '(-∞; -1)', '(1; +∞)', '(-∞; +∞)', 'A', 'y'' = -3x² + 3 > 0 ⇔ x² < 1 ⇔ -1 < x < 1.', 0.25, 'Nhận biết', 1),
-(1, 'mcq', 'Tiệm cận đứng của đồ thị hàm số y = (2x - 1)/(x + 3) là đường thẳng có phương trình:', 'x = -3', 'y = 2', 'x = 3', 'y = -1/3', 'A', 'Mẫu số x + 3 = 0 ⇔ x = -3 (không là nghiệm tử số) nên x = -3 là tiệm cận đứng.', 0.25, 'Nhận biết', 2),
-(1, 'mcq', 'Nguyên hàm của hàm số f(x) = 4x³ + sin(x) là:', 'x⁴ - cos(x) + C', 'x⁴ + cos(x) + C', '12x² - cos(x) + C', 'x⁴ - sin(x) + C', 'A', '∫(4x³ + sin x)dx = x⁴ - cos(x) + C.', 0.25, 'Nhận biết', 3),
-(1, 'mcq', 'Tập nghiệm của bất phương trình log₂(x - 1) < 3 là:', '(1; 9)', '(-∞; 9)', '(9; +∞)', '(1; 7)', 'A', 'Điều kiện x > 1. BPT ⇔ x - 1 < 2³ = 8 ⇔ x < 9. Vậy tập nghiệm là (1; 9).', 0.25, 'Nhận biết', 4),
-(1, 'mcq', 'Trong không gian Oxyz, cho hai điểm A(1; -2; 3) và B(3; 0; -1). Tọa độ vectơ AB là:', '(2; 2; -4)', '(4; -2; 2)', '(-2; -2; 4)', '(2; -1; 1)', 'A', 'AB = (3-1; 0-(-2); -1-3) = (2; 2; -4).', 0.25, 'Nhận biết', 5),
-(1, 'mcq', 'Cho cấp số nhân (uₙ) có u₁ = 3 và công bội q = 2. Giá trị của u₄ bằng:', '24', '12', '48', '16', 'A', 'u₄ = u₁.q³ = 3 × 2³ = 24.', 0.25, 'Nhận biết', 6),
-(1, 'mcq', 'Khảo sát thời gian tập thể dục (phút/ngày) của một nhóm học sinh: [0;20): 5, [20;40): 12, [40;60): 8. Nhóm chứa mốt của mẫu số liệu ghép nhóm là:', '[20; 40)', '[0; 20)', '[40; 60)', '[0; 60)', 'A', 'Nhóm có tần số lớn nhất (12 học sinh) là nhóm [20; 40).', 0.25, 'Nhận biết', 7),
-(1, 'mcq', 'Trong không gian Oxyz, mặt phẳng (P): 3x - y + 2z - 6 = 0 đi qua điểm nào dưới đây?', 'M(2; 0; 0)', 'N(0; 6; 0)', 'P(0; 0; -3)', 'Q(1; 1; 1)', 'A', 'Thay M(2; 0; 0) vào (P): 3(2) - 0 + 0 - 6 = 0 (thỏa mãn).', 0.25, 'Nhận biết', 8),
-(1, 'mcq', 'Cho hai biến cố độc lập A và B với P(A) = 0.4 và P(B) = 0.5. Xác suất P(A ∩ B) bằng:', '0.20', '0.90', '0.10', '0.45', 'A', 'Vì A, B độc lập nên P(A ∩ B) = P(A).P(B) = 0.4 × 0.5 = 0.20.', 0.25, 'Thông hiểu', 9),
-(1, 'mcq', 'Giá trị lớn nhất của hàm số f(x) = x + 4/x trên đoạn [1; 3] bằng:', '5', '4', '13/3', '6', 'A', 'f''(x) = 1 - 4/x² = 0 ⇒ x = 2 ∈ [1; 3]. f(1) = 5, f(2) = 4, f(3) = 13/3 ⇒ GTLN bằng 5.', 0.25, 'Thông hiểu', 10),
-(1, 'mcq', 'Diện tích hình phẳng giới hạn bởi đồ thị hàm số y = eˣ, trục hoành và hai đường thẳng x = 0, x = 2 là:', 'e² - 1', 'e²', 'e² + 1', '2e', 'A', 'S = ∫(0→2) eˣ dx = e² - e⁰ = e² - 1.', 0.25, 'Thông hiểu', 11),
-(1, 'mcq', 'Cho hình chóp S.ABCD có đáy là hình vuông cạnh a, SA ⊥ (ABCD) và SA = a√3. Góc giữa đường thẳng SC và mặt phẳng (ABCD) gần nhất với giá trị nào?', '50.8°', '45°', '60°', '30°', 'A', 'AC = a√2. tan(SC, (ABCD)) = SA/AC = √3/√2 = √6/2 ≈ 1.2247 ⇒ góc ≈ 50.77°.', 0.25, 'Thông hiểu', 12),
-
--- Phần II: Trắc nghiệm Đúng / Sai 4 ý (13 - 16)
-(1, 'true_false', 'Cho hàm số bậc ba y = f(x) = x³ - 3x² + 2. Xét tính đúng sai của các khẳng định sau:', 'a) Đạo hàm của hàm số là f''(x) = 3x² - 6x.', 'b) Hàm số đạt cực đại tại x = 2.', 'c) Giá trị cực tiểu của hàm số bằng -2.', 'd) Đường thẳng đi qua hai điểm cực trị của đồ thị hàm số là y = -2x + 2.', 'D,S,D,D', 'a) Đúng: f''(x) = 3x² - 6x.\nb) Sai: f''(x) = 0 ⇔ x = 0 (CĐ) hoặc x = 2 (CT).\nc) Đúng: y_CT = f(2) = 8 - 12 + 2 = -2.\nd) Đúng: Hai điểm cực trị là A(0; 2) và B(2; -2) đều nằm trên y = -2x + 2.', 1.00, 'Thông hiểu', 13),
-(1, 'true_false', 'Một ô tô đang chạy với tốc độ 20 m/s thì người lái xe hãm phanh, từ thời điểm đó ô tô chuyển động chậm dần đều với vận tốc v(t) = 20 - 4t (m/s), trong đó t (giây) là khoảng thời gian tính từ lúc hãm phanh.', 'a) Gia tốc của ô tô trong quá trình hãm phanh là -4 m/s².', 'b) Thời gian từ lúc hãm phanh đến khi ô tô dừng hẳn là 5 giây.', 'c) Quãng đường ô tô đi được trong 3 giây đầu tiên kể từ lúc hãm phanh là 42 m.', 'd) Tổng quãng đường ô tô đi được từ lúc hãm phanh cho đến khi dừng hẳn là 60 m.', 'D,D,D,S', 'a) Đúng: a(t) = v''(t) = -4 m/s².\nb) Đúng: v(t) = 0 ⇔ 20 - 4t = 0 ⇔ t = 5 s.\nc) Đúng: S(3) = ∫(0→3)(20 - 4t)dt = [20t - 2t²](0→3) = 60 - 18 = 42 m.\nd) Sai: S(5) = ∫(0→5)(20 - 4t)dt = 100 - 50 = 50 m.', 1.00, 'Vận dụng', 14),
-(1, 'true_false', 'Trong không gian Oxyz, cho điểm A(1; 2; -1), đường thẳng d: (x - 2)/1 = (y + 1)/2 = z/(-2) và mặt phẳng (P): 2x - y + 2z - 3 = 0.', 'a) Một vectơ chỉ phương của đường thẳng d là u = (1; 2; -2).', 'b) Một vectơ pháp tuyến của mặt phẳng (P) là n = (2; -1; 2).', 'c) Đường thẳng d vuông góc với mặt phẳng (P).', 'd) Khoảng cách từ điểm A đến mặt phẳng (P) bằng 5/3.', 'D,D,S,D', 'a) Đúng.\nb) Đúng.\nc) Sai: u.n = 1.2 + 2(-1) + (-2)(2) = -4 ≠ 0 (không vuông góc).\nd) Đúng: d(A, (P)) = |2(1) - 2 + 2(-1) - 3| / √(4+1+4) = |-5|/3 = 5/3.', 1.00, 'Vận dụng', 15),
-(1, 'true_false', 'Một hộp chứa 6 quả cầu xanh và 4 quả cầu đỏ có kích thước và khối lượng giống nhau. Lấy ngẫu nhiên liên tiếp 2 quả cầu không hoàn lại từ hộp.', 'a) Số phần tử của không gian mẫu là 90.', 'b) Xác suất để quả cầu thứ nhất lấy ra màu xanh là 0.6.', 'c) Xác suất để quả cầu thứ hai lấy ra màu đỏ, biết rằng quả thứ nhất màu xanh, là 4/9.', 'd) Xác suất để cả 2 quả cầu lấy ra đều có màu đỏ bằng 1/6.', 'D,D,D,S', 'a) Đúng: 10 × 9 = 90.\nb) Đúng: 6/10 = 0.6.\nc) Đúng: Còn 9 quả trong đó 4 quả đỏ ⇒ P(Đ₂|X₁) = 4/9.\nd) Sai: P(Đ₁ ∩ Đ₂) = (4/10)×(3/9) = 12/90 = 2/15.', 1.00, 'Vận dụng cao', 16),
-
--- Phần III: Trắc nghiệm Trả lời ngắn (17 - 22)
-(1, 'short_answer', 'Cho mẫu số liệu ghép nhóm về chiều cao của 40 cây giống: [10;20): 8, [20;30): 16, [30;40): 12, [40;50): 4. Tính số trung bình cộng (cm) của mẫu số liệu ghép nhóm trên.', NULL, NULL, NULL, NULL, '28', 'Giá trị đại diện các nhóm là 15, 25, 35, 45. Số TB = (15×8 + 25×16 + 35×12 + 45×4)/40 = 1120/40 = 28.', 0.50, 'Thông hiểu', 17),
-(1, 'short_answer', 'Cho hình chóp S.ABCD có đáy ABCD là hình chữ nhật với AB = 3, AD = 4, cạnh bên SA ⊥ (ABCD) và SA = 5. Tính thể tích khối chóp S.ABCD.', NULL, NULL, NULL, NULL, '20', 'Diện tích đáy B = 3 × 4 = 12. Thể tích V = (1/3)Bh = (1/3) × 12 × 5 = 20.', 0.50, 'Thông hiểu', 18),
-(1, 'short_answer', 'Một hộ gia đình sản xuất tối đa 100 sản phẩm mỗi tháng. Nếu bán x sản phẩm thì giá mỗi sản phẩm là p(x) = 50 - 0.2x (nghìn đồng) và tổng chi phí là C(x) = 10x + 200 (nghìn đồng). Hỏi hộ gia đình cần sản xuất bao nhiêu sản phẩm để lợi nhuận đạt lớn nhất?', NULL, NULL, NULL, NULL, '100', 'Lợi nhuận L(x) = -0.2x² + 40x - 200. Đạo hàm L''(x) = -0.4x + 40 = 0 ⇒ x = 100.', 0.50, 'Vận dụng', 19),
-(1, 'short_answer', 'Tính diện tích S của hình phẳng giới hạn bởi hai đường parabol y = x² - 2x và y = -x² + 4x.', NULL, NULL, NULL, NULL, '9', 'Hoành độ giao điểm: x = 0 hoặc x = 3. S = ∫(0→3)(6x - 2x²)dx = [3x² - (2/3)x³](0→3) = 27 - 18 = 9.', 0.50, 'Vận dụng', 20),
-(1, 'short_answer', 'Trong không gian Oxyz, một trạm thu phát sóng đặt tại I(1; 2; 3) có bán kính phủ sóng R = 5. Điểm M(4; 6; z) nằm trên mặt biên vùng phủ sóng (IM = 5) và có cao độ z > 0. Tính giá trị của z.', NULL, NULL, NULL, NULL, '3', 'IM² = (4-1)² + (6-2)² + (z-3)² = 25 ⇔ 9 + 16 + (z-3)² = 25 ⇔ z = 3.', 0.50, 'Vận dụng cao', 21),
-(1, 'short_answer', 'Một doanh nghiệp có 2 nhà máy A và B cùng sản xuất linh kiện. Nhà máy A sản xuất 60% sản lượng với tỉ lệ phế phẩm 2%; nhà máy B sản xuất 40% sản lượng với tỉ lệ phế phẩm 5%. Chọn ngẫu nhiên một linh kiện thấy đó là phế phẩm. Tính xác suất để linh kiện đó do nhà máy B sản xuất (làm tròn đến hàng phần trăm).', NULL, NULL, NULL, NULL, '0.63', 'Theo công thức Bayes: P(B|PP) = (0.4 × 0.05) / (0.6 × 0.02 + 0.4 × 0.05) = 0.02 / 0.032 = 0.625 ≈ 0.63.', 0.50, 'Vận dụng cao', 22);
-
--- ==========================================================
--- MÔN TOÁN - ĐỀ SỐ 02 (exam_id = 2): 22 CÂU - 90 PHÚT - TỔNG 10.00 ĐIỂM
--- Phần I: 12 câu mcq (0.25đ) | Phần II: 4 câu true_false (1.00đ) | Phần III: 6 câu short_answer (0.50đ)
--- ==========================================================
-INSERT INTO `questions` (`exam_id`, `question_type`, `question_text`, `option_a`, `option_b`, `option_c`, `option_d`, `correct_option`, `explanation`, `points_value`, `difficulty`, `sort_order`) VALUES
--- Phần I: Trắc nghiệm nhiều phương án lựa chọn (1 - 12)
-(2, 'mcq', 'Khảo sát cân nặng (kg) của 30 học sinh: [40;45): 4, [45;50): 8, [50;55): 12, [55;60): 6. Nhóm chứa trung vị của mẫu số liệu ghép nhóm trên là:', '[50; 55)', '[45; 50)', '[40; 45)', '[55; 60)', 'A', 'n/2 = 15. Tần số tích lũy đến hết nhóm [45;50) là 12 < 15; đến hết nhóm [50;55) là 24 ≥ 15 ⇒ nhóm chứa trung vị là [50; 55).', 0.25, 'Nhận biết', 1),
-(2, 'mcq', 'Họ nguyên hàm của hàm số f(x) = 1/x (với x > 0) là:', 'ln(x) + C', '-1/x² + C', '2√x + C', 'eˣ + C', 'A', 'Trên (0; +∞), ∫(1/x)dx = ln(x) + C.', 0.25, 'Nhận biết', 2),
-(2, 'mcq', 'Tập nghiệm của phương trình log₃(x) = 2 là:', '{9}', '{6}', '{8}', '{3}', 'A', 'log₃(x) = 2 ⇔ x = 3² = 9.', 0.25, 'Nhận biết', 3),
-(2, 'mcq', 'Cho cấp số cộng (uₙ) có u₁ = 2 và công sai d = 4. Giá trị của u₆ bằng:', '22', '24', '20', '18', 'A', 'u₆ = u₁ + 5d = 2 + 5×4 = 22.', 0.25, 'Nhận biết', 4),
-(2, 'mcq', 'Trong không gian Oxyz, mặt cầu (S): x² + y² + z² - 2x + 4y - 6z - 2 = 0 có tâm là:', 'I(1; -2; 3)', 'I(-1; 2; -3)', 'I(2; -4; 6)', 'I(1; 2; 3)', 'A', 'Chia hệ số x, y, z cho -2 ta được tâm I(1; -2; 3).', 0.25, 'Nhận biết', 5),
-(2, 'mcq', 'Cho hàm số y = (ax + b)/(cx + d) có tiệm cận đứng x = 1 và tiệm cận ngang y = -2. Giá trị của tỉ số a/c bằng:', '-2', '1', '2', '-1', 'A', 'Tiệm cận ngang y = a/c = -2.', 0.25, 'Nhận biết', 6),
-(2, 'mcq', 'Nếu ∫(0→4) f(x)dx = 10 thì ∫(0→4) [f(x) + 2]dx bằng:', '18', '12', '14', '20', 'A', '∫(0→4)f(x)dx + ∫(0→4)2dx = 10 + 8 = 18.', 0.25, 'Nhận biết', 7),
-(2, 'mcq', 'Cho hai biến cố A và B với P(A) > 0. Công thức nhân xác suất đúng là:', 'P(A ∩ B) = P(A) . P(B | A)', 'P(A ∩ B) = P(A) + P(B | A)', 'P(A ∩ B) = P(B) . P(B | A)', 'P(A ∩ B) = P(A) / P(B | A)', 'A', 'Theo quy tắc nhân xác suất: P(A ∩ B) = P(A).P(B | A).', 0.25, 'Nhận biết', 8),
-(2, 'mcq', 'Giá trị nhỏ nhất của hàm số y = x⁴ - 2x² + 5 trên đoạn [-1; 2] bằng:', '4', '5', '13', '3', 'A', 'y'' = 4x³ - 4x = 0 ⇒ x = 0; ±1. y(±1) = 4, y(0) = 5, y(2) = 13 ⇒ GTNN bằng 4.', 0.25, 'Thông hiểu', 9),
-(2, 'mcq', 'Cho log₂(3) = a. Giá trị của log₂(24) theo a bằng:', '3 + a', '3a', '2 + a', '4a', 'A', 'log₂(24) = log₂(8 × 3) = 3 + a.', 0.25, 'Thông hiểu', 10),
-(2, 'mcq', 'Trong không gian Oxyz, đường thẳng d đi qua A(2; 0; -1) và B(4; -2; 3) có một vectơ chỉ phương là:', 'u = (1; -1; 2)', 'u = (2; 2; 4)', 'u = (6; -2; 2)', 'u = (1; 1; 2)', 'A', 'AB = (2; -2; 4) = 2(1; -1; 2) ⇒ chọn u = (1; -1; 2).', 0.25, 'Thông hiểu', 11),
-(2, 'mcq', 'Cho hình chóp S.ABCD có đáy là hình thoi cạnh a, góc BAD = 60°, SA ⊥ (ABCD) và SA = a√3. Thể tích khối chóp S.ABCD bằng:', 'a³/2', 'a³√3/2', 'a³/4', 'a³', 'A', 'S_ABCD = a².sin60° = a²√3/2 ⇒ V = (1/3).(a²√3/2).(a√3) = a³/2.', 0.25, 'Thông hiểu', 12),
-
--- Phần II: Trắc nghiệm Đúng / Sai 4 ý (13 - 16)
-(2, 'true_false', 'Cho hàm số phân thức y = f(x) = (x² - 2x + 2) / (x - 1). Xét tính đúng sai của các khẳng định sau:', 'a) Tập xác định của hàm số là D = ℝ \\ {1}.', 'b) Đồ thị hàm số có tiệm cận đứng là đường thẳng x = 1.', 'c) Tiệm cận xiên của đồ thị hàm số là đường thẳng y = x - 1.', 'd) Hàm số đạt cực đại tại x = 2.', 'D,D,D,S', 'a) Đúng: ĐK x - 1 ≠ 0.\nb) Đúng.\nc) Đúng: f(x) = x - 1 + 1/(x - 1) nên tiệm cận xiên y = x - 1.\nd) Sai: f''(x) = 1 - 1/(x - 1)² = 0 ⇔ x = 0 (CĐ) hoặc x = 2 (CT).', 1.00, 'Thông hiểu', 13),
-(2, 'true_false', 'Một chất điểm chuyển động thẳng với phương trình vận tốc v(t) = t² - 4t + 3 (m/s), trong đó t ≥ 0 tính bằng giây.', 'a) Vận tốc ban đầu của chất điểm tại t = 0 là 3 m/s.', 'b) Gia tốc của chất điểm tại thời điểm t = 3 s là 2 m/s².', 'c) Trong khoảng thời gian từ t = 1 s đến t = 3 s, chất điểm chuyển động theo chiều dương.', 'd) Quãng đường chất điểm đi được trong 3 giây đầu tiên là 8/3 m.', 'D,D,S,D', 'a) Đúng: v(0) = 3 m/s.\nb) Đúng: a(t) = v''(t) = 2t - 4 ⇒ a(3) = 2 m/s².\nc) Sai: Với t ∈ (1; 3) thì v(t) = (t-1)(t-3) < 0 (chuyển động theo chiều âm).\nd) Đúng: S = ∫(0→1)(t²-4t+3)dt + ∫(1→3)|t²-4t+3|dt = 4/3 + 4/3 = 8/3 m.', 1.00, 'Vận dụng', 14),
-(2, 'true_false', 'Trong không gian Oxyz, cho hai điểm A(1; 0; 2), B(3; 2; 0) và mặt phẳng (P): x + y - z + 3 = 0.', 'a) Trung điểm I của đoạn thẳng AB có tọa độ là (2; 1; 1).', 'b) Vectơ pháp tuyến của mặt phẳng (P) là n = (1; 1; -1).', 'c) Đường thẳng AB song song với mặt phẳng (P).', 'd) Mặt phẳng trung trực của đoạn thẳng AB có phương trình là x + y - z - 2 = 0.', 'D,D,S,D', 'a) Đúng.\nb) Đúng.\nc) Sai: AB = (2; 2; -2) = 2n ⇒ đường thẳng AB vuông góc với (P).\nd) Đúng: đi qua I(2; 1; 1) với VTPT n = (1; 1; -1) ⇒ 1(x-2)+1(y-1)-1(z-1)=0 ⇔ x+y-z-2=0.', 1.00, 'Vận dụng', 15),
-(2, 'true_false', 'Một lớp học có 60% học sinh tham gia CLB Thể thao và 40% không tham gia. Tỉ lệ đạt giải cấp trường trong nhóm tham gia CLB là 25%, trong nhóm không tham gia là 10%. Chọn ngẫu nhiên một học sinh.', 'a) Xác suất chọn được học sinh tham gia CLB Thể thao là 0.6.', 'b) Xác suất học sinh đạt giải, biết rằng học sinh đó không tham gia CLB, là 0.1.', 'c) Xác suất học sinh được chọn đạt giải cấp trường là 0.19.', 'd) Biết rằng học sinh được chọn đạt giải cấp trường, xác suất học sinh đó tham gia CLB Thể thao bằng 15/19.', 'D,D,D,D', 'a) Đúng.\nb) Đúng.\nc) Đúng: P(G) = 0.6×0.25 + 0.4×0.10 = 0.19.\nd) Đúng: Theo Bayes, P(CLB | G) = (0.6×0.25) / 0.19 = 0.15 / 0.19 = 15/19.', 1.00, 'Vận dụng cao', 16),
-
--- Phần III: Trắc nghiệm Trả lời ngắn (17 - 22)
-(2, 'short_answer', 'Biết F(x) là một nguyên hàm của hàm số f(x) = 3x² - 2x thỏa mãn F(1) = 3. Tính giá trị của F(2).', NULL, NULL, NULL, NULL, '7', 'F(x) = x³ - x² + C. F(1) = C = 3 ⇒ F(2) = 8 - 4 + 3 = 7.', 0.50, 'Thông hiểu', 17),
-(2, 'short_answer', 'Cho mẫu số liệu ghép nhóm về quãng đường chạy bộ (km/tuần) của 40 người: [0;10): 10, [10;20): 10, [20;30): 10, [30;40): 10. Tính khoảng tứ phân vị Δ_Q của mẫu số liệu ghép nhóm trên.', NULL, NULL, NULL, NULL, '20', 'Q₁ = 10, Q₃ = 30 ⇒ Δ_Q = 30 - 10 = 20.', 0.50, 'Thông hiểu', 18),
-(2, 'short_answer', 'Cho hình chóp S.ABC có SA ⊥ (ABC), đáy ABC là tam giác vuông cân tại B, AB = BC = 6, SA = 6. Tính khoảng cách từ điểm A đến mặt phẳng (SBC) (làm tròn đến hàng phần trăm).', NULL, NULL, NULL, NULL, '4.24', 'BC ⊥ (SAB). Kẻ AH ⊥ SB ⇒ AH ⊥ (SBC). AH = (6×6)/√(36+36) = 3√2 ≈ 4.24.', 0.50, 'Vận dụng', 19),
-(2, 'short_answer', 'Một nhà sản xuất bán x chiếc xe đạp điện mỗi tháng với giá p(x) = 20 - 0.05x (triệu đồng) và tổng chi phí C(x) = 8x + 120 (triệu đồng). Hỏi lợi nhuận lớn nhất trong một tháng đạt bao nhiêu triệu đồng?', NULL, NULL, NULL, NULL, '600', 'L(x) = -0.05x² + 12x - 120 đạt cực đại tại x = 120 ⇒ L_max = 600 triệu đồng.', 0.50, 'Vận dụng', 20),
-(2, 'short_answer', 'Trong không gian Oxyz, cho điểm M(2; 1; -1) và mặt phẳng (P): 2x - y + 2z + 5 = 0. Tính khoảng cách từ M đến mặt phẳng (P).', NULL, NULL, NULL, NULL, '2', 'd(M, (P)) = |2(2) - 1 + 2(-1) + 5| / √(4 + 1 + 4) = |6| / 3 = 2.', 0.50, 'Vận dụng', 21),
-(2, 'short_answer', 'Tính thể tích khối tròn xoay tạo thành khi quay hình phẳng giới hạn bởi các đường y = √(2x), y = 0, x = 0, x = 3 quanh trục Ox (lấy π ≈ 3.14, làm tròn kết quả đến hàng phần trăm).', NULL, NULL, NULL, NULL, '28.26', 'V = π∫(0→3) 2x dx = π[x²](0→3) = 9π ≈ 9 × 3.14 = 28.26.', 0.50, 'Vận dụng cao', 22);
-
-
--- ==========================================================
--- MÔN TIẾNG ANH - ĐỀ SỐ 01 (exam_id = 3): 40 CÂU - 50 PHÚT - 0.25đ/CÂU
--- ==========================================================
-INSERT INTO `questions` (`exam_id`, `question_type`, `question_text`, `option_a`, `option_b`, `option_c`, `option_d`, `correct_option`, `explanation`, `points_value`, `difficulty`, `sort_order`) VALUES
--- Nhận biết (1 - 16)
-(3, 'mcq', '[Advertisement: SmartStudy App] "SmartStudy is an _______ learning platform designed for Grade 12 students."', 'innovative', 'innovation', 'innovate', 'innovatively', 'A', 'Tính từ "innovative" bổ nghĩa cho danh từ "learning platform".', 0.25, 'Nhận biết', 1),
-(3, 'mcq', '[Advertisement: SmartStudy App] "Students can focus _______ their weakest topics before the national exam."', 'on', 'at', 'with', 'for', 'A', 'Cụm từ cố định: "focus on" = tập trung vào.', 0.25, 'Nhận biết', 2),
-(3, 'mcq', '[Advertisement: SmartStudy App] "Download the app today to _______ full advantage of our free 30-day trial!"', 'take', 'make', 'do', 'give', 'A', 'Collocation: "take advantage of" = tận dụng.', 0.25, 'Nhận biết', 3),
-(3, 'mcq', '[Advertisement: SmartStudy App] "Don''t hesitate _______ our support team if you need technical assistance."', 'to contact', 'contacting', 'contact', 'contacted', 'A', 'Cấu trúc: "hesitate + to V".', 0.25, 'Nhận biết', 4),
-(3, 'mcq', '[Leaflet: Green Campus Week] "Remember to bring your reusable bottle _______ single-use plastic cups."', 'instead of', 'in case of', 'on account of', 'with a view to', 'A', '"instead of" = thay vì.', 0.25, 'Nhận biết', 5),
-(3, 'mcq', '[Leaflet: Green Campus Week] "A large _______ of volunteers is needed to plant 200 trees around the school."', 'number', 'amount', 'deal', 'quantity', 'A', '"A large number of + N(đếm được số nhiều)".', 0.25, 'Nhận biết', 6),
-(3, 'mcq', '[Leaflet: Green Campus Week] "Small daily actions can _______ a big difference to our local environment."', 'make', 'do', 'create', 'take', 'A', 'Collocation cố định: "make a difference".', 0.25, 'Nhận biết', 7),
-(3, 'mcq', 'Arrange the dialogue:
-a. Mai: I''m preparing for the university entrance exam, so I''m a bit stressed.
-b. Nam: Hi Mai! You look tired today. What''s wrong?
-c. Nam: Don''t worry too much. Make a clear study schedule and take short breaks!', 'b - a - c', 'a - b - c', 'b - c - a', 'c - a - b', 'A', 'Mở đầu hỏi thăm (b) → trả lời (a) → khuyên nhủ (c).', 0.25, 'Nhận biết', 8),
-(3, 'mcq', 'Choose the word whose underlined part differs in pronunciation: [ea]sy, t[ea]cher, h[ea]lthy, sp[ea]k', 'healthy', 'easy', 'teacher', 'speak', 'A', '"healthy" đọc là /e/, các từ còn lại đọc là /iː/.', 0.25, 'Nhận biết', 9),
-(3, 'mcq', 'Choose the word whose underlined part differs in pronunciation: book[s], lamp[s], bag[s], hat[s]', 'bags', 'books', 'lamps', 'hats', 'A', '"bags" kết thúc bằng âm hữu thanh /ɡ/ nên -s đọc là /z/, các từ còn lại đọc /s/.', 0.25, 'Nhận biết', 10),
-(3, 'mcq', 'Choose the word that differs in primary stress: nation, beauty, student, agree', 'agree', 'nation', 'beauty', 'student', 'A', '"agree" nhấn âm 2, các từ còn lại nhấn âm 1.', 0.25, 'Nhận biết', 11),
-(3, 'mcq', 'She _______ her grandparents in the countryside every summer.', 'visits', 'is visiting', 'visited', 'has visited', 'A', 'Thói quen lặp lại ("every summer") chia thì hiện tại đơn.', 0.25, 'Nhận biết', 12),
-(3, 'mcq', 'The novel _______ by a famous Vietnamese author in 2020.', 'was written', 'wrote', 'is writing', 'has written', 'A', 'Câu bị động ở thì quá khứ đơn ("in 2020").', 0.25, 'Nhận biết', 13),
-(3, 'mcq', 'Lan: "Congratulations on winning the first prize!" - Hoa: "_______"', 'Thank you so much!', 'You''re welcome.', 'I''m sorry to hear that.', 'Never mind.', 'A', 'Đáp lại lời chúc mừng dùng "Thank you so much!".', 0.25, 'Nhận biết', 14),
-(3, 'mcq', 'My brother is very fond _______ playing chess with my grandfather.', 'of', 'at', 'on', 'with', 'A', 'Cấu trúc: "be fond of + V-ing" (thích làm gì).', 0.25, 'Nhận biết', 15),
-(3, 'mcq', 'That is the university _______ my sister studied architecture.', 'where', 'which', 'who', 'whom', 'A', 'Trạng từ quan hệ "where" thay thế cho danh từ chỉ nơi chốn.', 0.25, 'Nhận biết', 16),
-
--- Thông hiểu (17 - 28)
-(3, 'mcq', '[Advertisement: SmartStudy App] "It offers _______ to help you master every subject faster."', 'interactive video lessons', 'lessons interactive video', 'video interactive lessons', 'interactive lessons video', 'A', 'Trật tự cụm danh từ chuẩn: tính từ + danh từ ghép.', 0.25, 'Thông hiểu', 17),
-(3, 'mcq', '[Advertisement: SmartStudy App] "All mock tests, _______ by experienced teachers, strictly follow the national format."', 'designed', 'designing', 'which designed', 'to design', 'A', 'Rút gọn mệnh đề quan hệ bị động dùng quá khứ phân từ "designed".', 0.25, 'Thông hiểu', 18),
-(3, 'mcq', '[Leaflet: Green Campus Week] "Plastic waste ends up in landfills, threatening _______ wildlife."', 'other', 'another', 'the others', 'others', 'A', '"other + danh từ không đếm được/số nhiều".', 0.25, 'Thông hiểu', 19),
-(3, 'mcq', '[Leaflet: Green Campus Week] "Students are encouraged to _______ old notebooks at the school recycling booth."', 'drop off', 'take over', 'put out', 'break down', 'A', '"drop off" = mang tới gửi/để lại.', 0.25, 'Thông hiểu', 20),
-(3, 'mcq', '[Leaflet: Green Campus Week] "We will also organize workshops on waste sorting and energy _______."', 'conservation', 'conversation', 'construction', 'consumption', 'A', '"energy conservation" = bảo tồn/tiết kiệm năng lượng.', 0.25, 'Thông hiểu', 21),
-(3, 'mcq', 'Arrange the dialogue:
-a. Lan: What time does it start?
-b. Minh: Are you free this Saturday morning? Our club is hosting a book fair.
-c. Lan: Yes, I am. Sounds interesting!
-d. Minh: It starts at 8 a.m. in the library yard.
-e. Lan: Count me in!', 'b - c - a - d - e', 'b - a - c - d - e', 'c - b - a - e - d', 'b - c - d - a - e', 'A', 'Trình tự tự nhiên: mời (b) → đáp (c) → hỏi giờ (a) → trả lời giờ (d) → đồng ý (e).', 0.25, 'Thông hiểu', 22),
-(3, 'mcq', 'Arrange the letter:
-a. Let me know if you can come so I can book the tickets early.
-b. I''m writing to invite you to a science exhibition next Sunday.
-c. It features amazing robotics demonstrations from university students.
-d. Looking forward to hearing from you soon.', 'b - c - a - d', 'c - b - a - d', 'b - a - c - d', 'a - b - c - d', 'A', 'Mục đích thư (b) → chi tiết sự kiện (c) → lời nhắn (a) → kết thư (d).', 0.25, 'Thông hiểu', 23),
-(3, 'mcq', '[Context Cloze: AI in Education] "One major application is the AI tutor, _______."', 'which can adapt lessons to each student''s learning pace', 'that adapting lessons to each student''s pace', 'whom helps students learn at their own pace', 'whose lessons adapted automatically', 'A', 'Mệnh đề quan hệ không xác định sau dấu phẩy dùng "which".', 0.25, 'Thông hiểu', 24),
-(3, 'mcq', '[Context Cloze: AI in Education] "_______, an AI system can immediately detect whether a student misunderstood a formula."', 'By analyzing thousands of practice responses in seconds', 'Analyze thousands of practice responses in seconds', 'Having analyzed by thousands of responses', 'Although analyzing thousands of practice responses', 'A', 'Cụm chỉ phương tiện "By + V-ing".', 0.25, 'Thông hiểu', 25),
-(3, 'mcq', '[Passage 1: Ocean Protection] "Oceans cover over 70% of Earth''s surface and produce at least 50% of the planet''s oxygen. Yet, rising sea temperatures and overfishing threaten marine ecosystems." How much oxygen do oceans produce?', 'At least half of Earth''s oxygen', 'Exactly 70% of Earth''s oxygen', 'Less than 20% of Earth''s oxygen', 'Nearly 100% of all oxygen', 'A', 'Bài nêu rõ: "produce at least 50% of the planet''s oxygen".', 0.25, 'Thông hiểu', 26),
-(3, 'mcq', '[Passage 1] The word "threaten" in Passage 1 is CLOSEST in meaning to:', 'endanger', 'protect', 'expand', 'celebrate', 'A', '"threaten" = "endanger" (đe dọa, gây nguy hiểm).', 0.25, 'Thông hiểu', 27),
-(3, 'mcq', '[Passage 1] "Community-led coral restoration and strict fishing quotas have helped fish populations recover." The word "recover" is OPPOSITE in meaning to:', 'decline', 'improve', 'heal', 'survive', 'A', '"recover" (phục hồi) trái nghĩa với "decline" (suy giảm).', 0.25, 'Thông hiểu', 28),
-
--- Vận dụng (29 - 36)
-(3, 'mcq', 'Arrange the paragraph:
-a. Furthermore, teaching a concept to a friend helps spot gaps in your understanding.
-b. Active recall is widely considered more effective than simply re-reading notes.
-c. By retrieving information without looking at the page, you strengthen memory pathways.
-d. Therefore, students should combine practice quizzes with peer discussions.', 'b - c - a - d', 'c - b - a - d', 'b - a - c - d', 'a - b - c - d', 'A', 'Câu chủ đề (b) → cơ chế (c) → bổ sung (a) → kết luận (d).', 0.25, 'Vận dụng', 29),
-(3, 'mcq', 'Arrange the paragraph:
-a. As a result, residents in greener neighborhoods report lower stress levels.
-b. Rapid urbanization has reduced the number of parks in many modern cities.
-c. Urban parks cool down temperatures and provide safe places for outdoor exercise.
-d. Recognizing these benefits, planners now prioritize rooftop gardens.', 'b - c - a - d', 'c - b - d - a', 'b - a - c - d', 'd - b - c - a', 'A', 'Thực trạng (b) → lợi ích (c) → kết quả (a) → giải pháp (d).', 0.25, 'Vận dụng', 30),
-(3, 'mcq', '[Context Cloze: AI in Education] "Educators emphasize that empathy and moral guidance _______."', 'remain skills that only human mentors can genuinely offer', 'remains skills only offered by human mentors', 'is remaining a skill for human mentors', 'remaining as unique teacher abilities', 'A', 'Chủ ngữ số nhiều "empathy and moral guidance" đi với "remain".', 0.25, 'Vận dụng', 31),
-(3, 'mcq', '[Context Cloze: AI in Education] "In addition, _______ if students rely too heavily on AI to write essays."', 'critical thinking abilities might gradually decline', 'critical thinking abilities had declined', 'the decline of thinking was unavoidable', 'critically thinking ability will declined', 'A', 'Câu điều kiện loại 1 diễn tả hệ quả có thể xảy ra: "might gradually decline".', 0.25, 'Vận dụng', 32),
-(3, 'mcq', '[Passage 1] What is the main idea of Passage 1 (Ocean Protection)?', 'Promoting the sustainable blue economy to protect vital ocean ecosystems', 'Describing how deep-sea submarines work', 'Banning all coastal tourism permanently', 'Comparing forest oxygen with desert air', 'A', 'Toàn bài nói về bảo vệ đại dương qua mô hình kinh tế biển bền vững.', 0.25, 'Vận dụng', 33),
-(3, 'mcq', '[Passage 2: Remote Work] "High-speed internet and cloud tools have reshaped workplaces. However, without clear boundaries, employees may experience burnout. Forward-thinking firms set ''no-email'' evening hours." What drawback is mentioned?', 'Difficulty separating work hours from personal time', 'Lack of internet access in city centers', 'Higher daily commuting expenses', 'Too many in-person meetings every morning', 'A', 'Bài nêu việc thiếu ranh giới giữa công việc và cuộc sống gây kiệt sức.', 0.25, 'Vận dụng', 34),
-(3, 'mcq', '[Passage 2] How do progressive companies address remote-work challenges?', 'By restricting evening emails and organizing in-person retreats', 'By forcing staff to work 12 hours daily', 'By banning cloud collaboration tools', 'By closing all physical offices permanently', 'A', 'Thông tin: "setting ''no-email'' evening hours and scheduling regular in-person team retreats".', 0.25, 'Vận dụng', 35),
-(3, 'mcq', '[Passage 2] The word "burnout" refers to:', 'physical or mental exhaustion caused by overwork', 'a sudden promotion at a technology company', 'high-speed fiber optic internet installation', 'an annual outdoor team-building celebration', 'A', '"burnout" = sự kiệt sức vì làm việc quá tải.', 0.25, 'Vận dụng', 36),
-
--- Vận dụng cao (37 - 40)
-(3, 'mcq', '[Passage 2] "(I) Workers split their week between home and shared offices. (II) Suburban cafes have boomed. (III) However, junior staff miss spontaneous mentoring." Where does "This shift has significantly reduced downtown traffic." best fit?', 'Between (I) and (II)', 'Before (I)', 'After (III)', 'After (II)', 'A', 'Câu nói về kết quả giảm ùn tắc trung tâm nối liền sau (I) và trước (II).', 0.25, 'Vận dụng cao', 37),
-(3, 'mcq', '[Passage 2] Which sentence best paraphrases: "Without clear boundaries between work and personal life, employees may experience burnout."?', 'Failing to separate professional duties from private time can lead to worker exhaustion.', 'Commuting to crowded offices is the only cause of worker burnout.', 'Personal life prevents employees from learning cloud tools.', 'Clear boundaries guarantee workers never need vacations.', 'A', 'Diễn đạt lại chính xác nghĩa gốc câu trong bài đọc.', 0.25, 'Vận dụng cao', 38),
-(3, 'mcq', 'Not until the final bell rang _______ leaving the examination room.', 'did the candidates start', 'the candidates started', 'started the candidates', 'had the candidates start', 'A', 'Đảo ngữ "Not until + mệnh đề, trợ động từ + S + V_inf".', 0.25, 'Vận dụng cao', 39),
-(3, 'mcq', 'It is essential that every applicant _______ the online form before the deadline.', 'submit', 'submits', 'submitted', 'is submitting', 'A', 'Thức giả định: "It is essential that + S + V(nguyên mẫu không to)".', 0.25, 'Vận dụng cao', 40);
-
--- ==========================================================
--- MÔN TIẾNG ANH - ĐỀ SỐ 02 (exam_id = 4): 40 CÂU - 50 PHÚT - 0.25đ/CÂU
--- ==========================================================
-INSERT INTO `questions` (`exam_id`, `question_type`, `question_text`, `option_a`, `option_b`, `option_c`, `option_d`, `correct_option`, `explanation`, `points_value`, `difficulty`, `sort_order`) VALUES
--- Nhận biết (1 - 16)
-(4, 'mcq', 'Pronunciation (underlined vowel): l[a]ke, g[a]me, m[a]de, f[a]ct', 'fact', 'lake', 'game', 'made', 'A', '"fact" phát âm /æ/, các từ còn lại phát âm /eɪ/.', 0.25, 'Nhận biết', 1),
-(4, 'mcq', 'Pronunciation (-ed ending): want[ed], need[ed], visit[ed], lik[ed]', 'liked', 'wanted', 'needed', 'visited', 'A', '"liked" có âm cuối /k/ nên -ed đọc là /t/, các từ còn lại đọc /ɪd/.', 0.25, 'Nhận biết', 2),
-(4, 'mcq', 'Primary stress: hospital, library, computer, family', 'computer', 'hospital', 'library', 'family', 'A', '"computer" nhấn âm 2, các từ còn lại nhấn âm 1.', 0.25, 'Nhận biết', 3),
-(4, 'mcq', 'Primary stress: arrive, open, enjoy, begin', 'open', 'arrive', 'enjoy', 'begin', 'A', '"open" nhấn âm 1, các động từ 2 âm tiết còn lại nhấn âm 2.', 0.25, 'Nhận biết', 4),
-(4, 'mcq', 'Look! The children _______ football happily in the schoolyard.', 'are playing', 'play', 'played', 'have played', 'A', 'Có "Look!" chỉ hành động đang diễn ra tại thời điểm nói ⇒ hiện tại tiếp diễn.', 0.25, 'Nhận biết', 5),
-(4, 'mcq', 'He has lived in Hanoi _______ more than ten years.', 'for', 'since', 'ago', 'during', 'A', '"for + khoảng thời gian" (more than ten years).', 0.25, 'Nhận biết', 6),
-(4, 'mcq', 'Your sister can speak Japanese fluently, _______?', 'can''t she', 'can she', 'doesn''t she', 'isn''t she', 'A', 'Câu hỏi đuôi với động từ khuyết thiếu "can" khẳng định ⇒ "can''t she".', 0.25, 'Nhận biết', 7),
-(4, 'mcq', 'This bridge _______ in 2015 to connect the two districts.', 'was built', 'built', 'is built', 'has built', 'A', 'Câu bị động quá khứ đơn ("in 2015").', 0.25, 'Nhận biết', 8),
-(4, 'mcq', 'She asked me _______ I liked watching science fiction movies.', 'if', 'that', 'what', 'which', 'A', 'Câu tường thuật dạng Yes/No question dùng "if" hoặc "whether".', 0.25, 'Nhận biết', 9),
-(4, 'mcq', 'Tom decided _______ a part-time job to gain practical experience.', 'to take', 'taking', 'take', 'taken', 'A', 'Cấu trúc: "decide + to V".', 0.25, 'Nhận biết', 10),
-(4, 'mcq', 'Nam: "How about going for a bike ride this afternoon?" - Ba: "_______"', 'That''s a great idea!', 'No, I don''t.', 'Yes, I do.', 'Never mind.', 'A', 'Đáp lại lời gợi ý "How about...?" bằng "That''s a great idea!".', 0.25, 'Nhận biết', 11),
-(4, 'mcq', 'I need to buy _______ new dictionary for my English class.', 'a', 'an', 'the', 'no article', 'A', '"new dictionary" đếm được số ít, nhắc lần đầu và bắt đầu bằng phụ âm ⇒ dùng "a".', 0.25, 'Nhận biết', 12),
-(4, 'mcq', 'Mount Everest is the _______ mountain in the world.', 'highest', 'higher', 'high', 'most high', 'A', 'So sánh nhất với tính từ ngắn "high" ⇒ "the highest".', 0.25, 'Nhận biết', 13),
-(4, 'mcq', 'We couldn''t go camping _______ the terrible storm.', 'because of', 'because', 'although', 'despite', 'A', '"because of + cụm danh từ" chỉ nguyên nhân.', 0.25, 'Nhận biết', 14),
-(4, 'mcq', 'You should _______ up the meaning of new words in a dictionary.', 'look', 'take', 'get', 'make', 'A', 'Phrasal verb: "look up" = tra cứu (từ điển, thông tin).', 0.25, 'Nhận biết', 15),
-(4, 'mcq', 'She plays the piano very _______ and won many awards.', 'well', 'good', 'better', 'best', 'A', 'Trạng từ "well" bổ nghĩa cho động từ thường "plays".', 0.25, 'Nhận biết', 16),
-
--- Thông hiểu (17 - 28)
-(4, 'mcq', 'CLOSEST in meaning: Parents should ENCOURAGE their children to read books every day.', 'motivate', 'prevent', 'criticize', 'ignore', 'A', '"encourage" (khuyến khích) đồng nghĩa với "motivate" (tạo động lực).', 0.25, 'Thông hiểu', 17),
-(4, 'mcq', 'CLOSEST in meaning: The museum displays ANCIENT artifacts from the Bronze Age.', 'very old', 'modern', 'common', 'expensive', 'A', '"ancient" (cổ đại) = "very old".', 0.25, 'Thông hiểu', 18),
-(4, 'mcq', 'OPPOSITE in meaning: It is GENEROUS of him to donate half of his prize money.', 'selfish', 'kind', 'helpful', 'wealthy', 'A', '"generous" (hào phóng) trái nghĩa với "selfish" (ích kỷ).', 0.25, 'Thông hiểu', 19),
-(4, 'mcq', 'OPPOSITE in meaning: The instructions were so VAGUE that nobody knew what to do.', 'clear', 'unclear', 'short', 'confusing', 'A', '"vague" (mơ hồ) trái nghĩa với "clear" (rõ ràng).', 0.25, 'Thông hiểu', 20),
-(4, 'mcq', 'Find the mistake: The number of students [attending] the workshop [have] increased [dramatically] [this year].', 'have', 'attending', 'dramatically', 'this year', 'A', 'Chủ ngữ "The number of + N(số nhiều)" luôn đi với động từ số ít ⇒ "have" sửa thành "has".', 0.25, 'Thông hiểu', 21),
-(4, 'mcq', 'Find the mistake: My sister [is] [interested] in [collect] postcards from [different] countries.', 'collect', 'is', 'interested', 'different', 'A', 'Sau giới từ "in" dùng V-ing ⇒ "collect" sửa thành "collecting".', 0.25, 'Thông hiểu', 22),
-(4, 'mcq', 'If she _______ earlier, she wouldn''t have missed the train.', 'had left', 'left', 'leaves', 'would leave', 'A', 'Câu điều kiện loại 3: If + S + had + V3/ed, S + would have + V3/ed.', 0.25, 'Thông hiểu', 23),
-(4, 'mcq', 'The more books you read, _______ knowledge you will gain.', 'the more', 'more', 'the most', 'most', 'A', 'So sánh kép với danh từ: "The more + N + S + V, the more + N + S + V".', 0.25, 'Thông hiểu', 24),
-(4, 'mcq', '_______ in 1998, the library serves thousands of students every month.', 'Built', 'Building', 'To build', 'Having built', 'A', 'Rút gọn mệnh đề trạng ngữ bị động dùng quá khứ phân từ "Built".', 0.25, 'Thông hiểu', 25),
-(4, 'mcq', 'By the time we arrived at the cinema, the movie _______ for fifteen minutes.', 'had started', 'started', 'has started', 'starts', 'A', 'Hành động xảy ra trước một mốc quá khứ dùng thì quá khứ hoàn thành "had started".', 0.25, 'Thông hiểu', 26),
-(4, 'mcq', 'When I was a child, my grandfather _______ tell me folk tales before bedtime.', 'used to', 'was used to', 'is used to', 'got used to', 'A', '"used to + V_inf" diễn tả thói quen trong quá khứ nay không còn.', 0.25, 'Thông hiểu', 27),
-(4, 'mcq', 'Many volunteers helped clean _______ the beach after the music festival.', 'up', 'out', 'off', 'away', 'A', 'Phrasal verb: "clean up" = dọn dẹp sạch sẽ.', 0.25, 'Thông hiểu', 28),
-
--- Vận dụng (29 - 36)
-(4, 'mcq', 'Rewrite: "Don''t forget to lock the front door," Mom said to me.', 'Mom reminded me to lock the front door.', 'Mom forbade me to lock the front door.', 'Mom apologized for locking the front door.', 'Mom denied locking the front door.', 'A', '"Don''t forget to V" tường thuật bằng "S + reminded + O + to V".', 0.25, 'Vận dụng', 29),
-(4, 'mcq', 'Rewrite: She started learning French five years ago.', 'She has been learning French for five years.', 'She hasn''t learned French for five years.', 'She stopped learning French five years ago.', 'It was five years when she learned French.', 'A', 'Chuyển từ quá khứ đơn ("started ... ago") sang hiện tại hoàn thành ("has been learning ... for").', 0.25, 'Vận dụng', 30),
-(4, 'mcq', 'Rewrite: Perhaps he missed the morning bus.', 'He might have missed the morning bus.', 'He mustn''t have missed the morning bus.', 'He shouldn''t have missed the morning bus.', 'He can''t have missed the morning bus.', 'A', 'Dự đoán có khả năng xảy ra trong quá khứ ("Perhaps") dùng "might have + V3/ed".', 0.25, 'Vận dụng', 31),
-(4, 'mcq', 'Reading: "Urban farming—growing vegetables on rooftops and balconies—reduces food transport emissions and cools city buildings. Though space is limited, vertical racks allow families to harvest fresh greens year-round." What is an advantage of urban farming?', 'It lowers emissions from transporting food and cools buildings.', 'It requires thousands of hectares of rural farmland.', 'It prevents families from eating fresh vegetables.', 'It increases city air conditioning energy bills.', 'A', 'Bài nêu rõ: "reduces food transport emissions and cools city buildings".', 0.25, 'Vận dụng', 32),
-(4, 'mcq', 'Based on the Urban Farming text, how do city residents overcome limited space?', 'By using vertical racks on rooftops and balconies', 'By moving all factories into rural forests', 'By stopping vegetable consumption in winter', 'By building underground parking garages', 'A', 'Thông tin: "vertical racks allow families to harvest fresh greens year-round".', 0.25, 'Vận dụng', 33),
-(4, 'mcq', 'Combine: He speaks English very fluently. However, he has never lived abroad.', 'Although he has never lived abroad, he speaks English very fluently.', 'Because he has never lived abroad, he speaks English fluently.', 'Despite he has never lived abroad, he speaks fluently.', 'Unless he lived abroad, he would speak fluently.', 'A', 'Hai mệnh đề tương phản nối bằng liên từ "Although".', 0.25, 'Vận dụng', 34),
-(4, 'mcq', 'The manager decided to _______ the meeting until next Monday due to bad weather.', 'put off', 'take after', 'get over', 'bring up', 'A', '"put off" = trì hoãn.', 0.25, 'Vận dụng', 35),
-(4, 'mcq', 'Making a detailed study plan is the best way to _______ your exam anxiety.', 'alleviate', 'aggravate', 'multiply', 'trigger', 'A', '"alleviate anxiety" = làm dịu/giảm bớt sự lo âu.', 0.25, 'Vận dụng', 36),
-
--- Vận dụng cao (37 - 40)
-(4, 'mcq', 'Had it not been for the lifeguard''s quick reaction, the child _______ drowned.', 'would have', 'will have', 'had', 'would', 'A', 'Đảo ngữ câu điều kiện loại 3: "Had it not been for + N, S + would have + V3/ed".', 0.25, 'Vận dụng cao', 37),
-(4, 'mcq', 'Every student is expected to _______ their weight when working on the group science project.', 'pull', 'push', 'lift', 'carry', 'A', 'Thành ngữ (Idiom): "pull one''s weight" = làm tròn phần việc/trách nhiệm của mình trong nhóm.', 0.25, 'Vận dụng cao', 38),
-(4, 'mcq', 'Hardly _______ at the airport when the boarding announcement was made.', 'had we arrived', 'we had arrived', 'did we arrive', 'have we arrived', 'A', 'Đảo ngữ với "Hardly + had + S + V3/ed + when + S + V2/ed".', 0.25, 'Vận dụng cao', 39),
-(4, 'mcq', 'The new policy aims to bridge the _______ between urban and rural digital education.', 'gap', 'wall', 'road', 'line', 'A', 'Collocation chuẩn: "bridge the gap" = thu hẹp khoảng cách.', 0.25, 'Vận dụng cao', 40);
-
-
-
--- ==========================================================
--- MÔN VẬT LÝ - ĐỀ SỐ 01 (exam_id = 5): 28 CÂU - 50 PHÚT - TỔNG 10.00 ĐIỂM
--- Phần I: 18 câu mcq (0.25đ = 4.50đ) | Phần II: 4 câu true_false (1.00đ = 4.00đ) | Phần III: 6 câu short_answer (0.25đ = 1.50đ)
--- ==========================================================
-INSERT INTO `questions` (`exam_id`, `question_type`, `question_text`, `option_a`, `option_b`, `option_c`, `option_d`, `correct_option`, `explanation`, `points_value`, `difficulty`, `sort_order`) VALUES
--- Phần I: Chọn đáp án (1 - 18)
-(5, 'mcq', 'Quá trình chuyển từ thể lỏng sang thể rắn của một chất được gọi là:', 'Sự đông đặc', 'Sự nóng chảy', 'Sự bay hơi', 'Sự ngưng tụ', 'A', 'Chuyển từ thể lỏng sang thể rắn là sự đông đặc.', 0.25, 'Nhận biết', 1),
-(5, 'mcq', 'Theo định luật I của nhiệt động lực học ΔU = A + Q, nếu hệ nhận nhiệt lượng Q > 0 và thực hiện công A < 0 thì độ biến thiên nội năng của hệ là:', 'ΔU = Q - |A|', 'ΔU = Q + |A|', 'ΔU = |A| - Q', 'ΔU = 0', 'A', 'Hệ thực hiện công nên A < 0, do đó ΔU = Q + A = Q - |A|.', 0.25, 'Nhận biết', 2),
-(5, 'mcq', 'Đơn vị đo nhiệt độ nhiệt động lực học trong hệ SI là:', 'Kelvin (K)', 'Độ Celsius (°C)', 'Độ Fahrenheit (°F)', 'Joule (J)', 'A', 'Đơn vị nhiệt độ tuyệt đối trong hệ SI là Kelvin (K).', 0.25, 'Nhận biết', 3),
-(5, 'mcq', 'Trong quá trình đẳng nhiệt của một lượng khí lí tưởng xác định (định luật Boyle), áp suất p và thể tích V liên hệ với nhau theo hệ thức:', 'pV = hằng số', 'p/V = hằng số', 'pV² = hằng số', 'V/p = hằng số', 'A', 'Định luật Boyle: ở nhiệt độ không đổi, pV = hằng số.', 0.25, 'Nhận biết', 4),
-(5, 'mcq', 'Động năng tịnh tiến trung bình của phân tử khí lí tưởng tỉ lệ thuận với đại lượng nào sau đây?', 'Nhiệt độ tuyệt đối T', 'Thể tích bình chứa V', 'Khối lượng riêng của khí', 'Diện tích thành bình', 'A', 'W_đ = (3/2)kT, tỉ lệ thuận trực tiếp với nhiệt độ tuyệt đối T.', 0.25, 'Nhận biết', 5),
-(5, 'mcq', 'Một vật dao động điều hòa với phương trình x = 4cos(5πt + π/6) (cm). Tần số góc của dao động là:', '5π rad/s', '4 rad/s', 'π/6 rad/s', '10π rad/s', 'A', 'So sánh với x = Acos(ωt + φ) ta có ω = 5π rad/s.', 0.25, 'Nhận biết', 6),
-(5, 'mcq', 'Sóng nào sau đây là sóng ngang và truyền được trong chân không?', 'Sóng điện từ', 'Sóng âm trong không khí', 'Sóng dọc trên lò xo', 'Sóng siêu âm trong nước', 'A', 'Sóng điện từ là sóng ngang và truyền được qua chân không với tốc độ c = 3.10⁸ m/s.', 0.25, 'Nhận biết', 7),
-(5, 'mcq', 'Từ thông Φ gửi qua một khung dây phẳng diện tích S đặt trong từ trường đều B được tính bởi công thức (α là góc hợp bởi vectơ pháp tuyến n và B):', 'Φ = B.S.cos(α)', 'Φ = B.S.sin(α)', 'Φ = B.S.tan(α)', 'Φ = B / (S.cos(α))', 'A', 'Công thức từ thông: Φ = B.S.cos(α).', 0.25, 'Nhận biết', 8),
-(5, 'mcq', 'Lực từ tác dụng lên một đoạn dây dẫn thẳng dài l mang dòng điện I đặt vuông góc với đường sức từ của từ trường đều B có độ lớn là:', 'F = B.I.l', 'F = B.I / l', 'F = B.l / I', 'F = 0', 'A', 'F = B.I.l.sin(90°) = B.I.l.', 0.25, 'Nhận biết', 9),
-(5, 'mcq', 'Suất điện động cảm ứng xuất hiện trong một mạch kín có độ lớn tỉ lệ thuận với:', 'Tốc độ biến thiên từ thông qua mạch', 'Từ thông cực đại qua mạch', 'Điện trở của mạch kín', 'Diện tích vòng dây', 'A', 'Định luật Faraday: |e_c| = |ΔΦ / Δt|.', 0.25, 'Nhận biết', 10),
-(5, 'mcq', 'Dòng điện xoay chiều chạy qua một đoạn mạch có biểu thức i = 4cos(100πt) (A). Cường độ dòng điện hiệu dụng là:', '2√2 A', '4 A', '4√2 A', '2 A', 'A', 'I = I₀ / √2 = 4 / √2 = 2√2 A.', 0.25, 'Thông hiểu', 11),
-(5, 'mcq', 'Hạt nhân nguyên tử ¹⁴₆C có số nơtron bằng:', '8', '6', '14', '20', 'A', 'Số nơtron N = A - Z = 14 - 6 = 8.', 0.25, 'Nhận biết', 12),
-(5, 'mcq', 'Tia phóng xạ nào sau đây có khả năng đâm xuyên mạnh nhất và không bị lệch trong điện trường, từ trường?', 'Tia gamma (γ)', 'Tia anpha (α)', 'Tia beta cộng (β⁺)', 'Tia beta trừ (β⁻)', 'A', 'Tia γ là sóng điện từ không mang điện, bước sóng cực ngắn nên đâm xuyên mạnh nhất.', 0.25, 'Nhận biết', 13),
-(5, 'mcq', 'Trong quá trình đẳng áp của một lượng khí lí tưởng, khi nhiệt độ tuyệt đối tăng lên 2 lần thì thể tích của khối khí sẽ:', 'Tăng lên 2 lần', 'Giảm đi 2 lần', 'Tăng lên 4 lần', 'Không thay đổi', 'A', 'Định luật Charles: V / T = hằng số ⇒ T tăng 2 lần thì V tăng 2 lần.', 0.25, 'Thông hiểu', 14),
-(5, 'mcq', 'Đun nóng 2 kg nước (nhiệt dung riêng c = 4200 J/kg.K) từ 20°C lên 70°C. Nhiệt lượng nước đã thu vào là:', '420 kJ', '42 kJ', '588 kJ', '168 kJ', 'A', 'Q = m.c.Δt = 2 × 4200 × (70 - 20) = 420 000 J = 420 kJ.', 0.25, 'Thông hiểu', 15),
-(5, 'mcq', 'Một đoạn dây dẫn dài 0.5 m mang dòng điện 4 A đặt vuông góc với cảm ứng từ B = 0.2 T. Độ lớn lực từ tác dụng lên đoạn dây là:', '0.4 N', '4.0 N', '0.1 N', '2.5 N', 'A', 'F = B.I.l.sin(90°) = 0.2 × 4 × 0.5 = 0.4 N.', 0.25, 'Thông hiểu', 16),
-(5, 'mcq', 'Trong thí nghiệm giao thoa ánh sáng Y-âng với a = 1 mm, D = 1.5 m, λ = 0.5 μm. Khoảng vân i trên màn là:', '0.75 mm', '1.50 mm', '0.50 mm', '3.00 mm', 'A', 'i = λD / a = (0.5 × 1.5) / 1 = 0.75 mm.', 0.25, 'Thông hiểu', 17),
-(5, 'mcq', 'Năng lượng liên kết của hạt nhân ⁴₂He là 28.4 MeV. Năng lượng liên kết riêng của hạt nhân này bằng:', '7.1 MeV/nuclôn', '28.4 MeV/nuclôn', '14.2 MeV/nuclôn', '56.8 MeV/nuclôn', 'A', 'E_lkr = W_lk / A = 28.4 / 4 = 7.1 MeV/nuclôn.', 0.25, 'Thông hiểu', 18),
-
--- Phần II: Đúng / Sai 4 ý (19 - 22)
-(5, 'true_false', 'Một học sinh làm nóng chảy hoàn toàn 0.5 kg nước đá ở 0°C thành nước lỏng ở 20°C. Biết nhiệt nóng chảy riêng của nước đá là λ = 3.34×10⁵ J/kg và nhiệt dung riêng của nước là c = 4200 J/(kg.K).', 'a) Trong suốt quá trình nước đá đang nóng chảy ở 0°C, nhiệt độ của hệ không thay đổi.', 'b) Nhiệt lượng cần để làm nóng chảy hoàn toàn 0.5 kg nước đá ở 0°C là 167 kJ.', 'c) Nhiệt lượng cần cung cấp để đun nước từ 0°C lên 20°C là 42 kJ.', 'd) Tổng nhiệt lượng cần cung cấp cho toàn bộ quá trình trên là 250 kJ.', 'D,D,D,S', 'a) Đúng.\nb) Đúng: Q₁ = mλ = 0.5 × 334 000 = 167 kJ.\nc) Đúng: Q₂ = mcΔt = 0.5 × 4200 × 20 = 42 kJ.\nd) Sai: Tổng Q = 167 + 42 = 209 kJ.', 1.00, 'Thông hiểu', 19),
-(5, 'true_false', 'Một lượng khí lí tưởng xác định chứa trong xi-lanh kín có pít-tông di chuyển được. Ban đầu khí có áp suất p₁ = 1.0×10⁵ Pa, thể tích V₁ = 4 lít và nhiệt độ T₁ = 300 K. Người ta nén đẳng nhiệt khí xuống còn V₂ = 2 lít.', 'a) Quá trình biến đổi trạng thái trên là quá trình đẳng nhiệt nên T₂ = 300 K.', 'b) Sau khi nén, áp suất của khối khí trong xi-lanh là 2.0×10⁵ Pa.', 'c) Trong quá trình nén đẳng nhiệt, nội năng của khí lí tưởng tăng lên gấp đôi.', 'd) Mật độ phân tử khí trong xi-lanh tăng lên gấp đôi sau khi nén.', 'D,D,S,D', 'a) Đúng.\nb) Đúng: p₂ = p₁V₁/V₂ = 2.0×10⁵ Pa.\nc) Sai: Nội năng khí lí tưởng chỉ phụ thuộc T; T không đổi nên ΔU = 0.\nd) Đúng: Thể tích giảm một nửa nên mật độ phân tử n = N/V tăng 2 lần.', 1.00, 'Vận dụng', 20),
-(5, 'true_false', 'Một khung dây dẫn phẳng hình vuông cạnh a = 10 cm gồm N = 100 vòng dây đặt cố định trong từ trường đều có cảm ứng từ B vuông góc với mặt phẳng khung. Trong thời gian Δt = 0.2 s, cảm ứng từ giảm đều từ 0.5 T về 0.1 T.', 'a) Diện tích mỗi vòng dây của khung là S = 0.01 m².', 'b) Độ biến thiên từ thông qua toàn bộ khung dây có độ lớn |ΔΦ| = 0.4 Wb.', 'c) Độ lớn suất điện động cảm ứng xuất hiện trong khung dây là 2.0 V.', 'd) Nếu giữ nguyên tốc độ biến thiên của B nhưng tăng số vòng dây lên 200 vòng thì suất điện động cảm ứng giảm đi một nửa.', 'D,D,D,S', 'a) Đúng: S = 0.1² = 0.01 m².\nb) Đúng: |ΔΦ| = 100 × 0.01 × |0.1 - 0.5| = 0.4 Wb.\nc) Đúng: |e_c| = 0.4 / 0.2 = 2.0 V.\nd) Sai: e_c tỉ lệ thuận với N nên tăng N lên 2 lần thì e_c tăng lên 2 lần.', 1.00, 'Vận dụng', 21),
-(5, 'true_false', 'Đồng vị phóng xạ ¹³¹₅₃I có chu kì bán rã T = 8 ngày, phát ra tia β⁻ và biến thành hạt nhân Xenon (¹³¹₅₄Xe). Ban đầu có một mẫu chứa 16 mg ¹³¹₅₃I nguyên chất.', 'a) Số khối của hạt nhân con Xenon tạo thành là 131.', 'b) Hằng số phóng xạ của ¹³¹₅₃I là λ = ln(2) / 8 (ngày⁻¹).', 'c) Sau 24 ngày kể từ thời điểm ban đầu, khối lượng ¹³¹₅₃I còn lại là 2 mg.', 'd) Sau 16 ngày, khối lượng ¹³¹₅₃I đã bị phân rã là 4 mg.', 'D,D,D,S', 'a) Đúng.\nb) Đúng.\nc) Đúng: 24 ngày = 3T ⇒ m = 16 / 2³ = 2 mg.\nd) Sai: Sau 16 ngày = 2T, lượng còn lại là 4 mg nên lượng đã phân rã là 16 - 4 = 12 mg.', 1.00, 'Vận dụng cao', 22),
-
--- Phần III: Trả lời ngắn (23 - 28)
-(5, 'short_answer', 'Một khối khí nhận nhiệt lượng Q = 800 J và nhận công A = 300 J từ bên ngoài. Tính độ biến thiên nội năng ΔU (theo đơn vị J) của khối khí đó.', NULL, NULL, NULL, NULL, '1100', 'ΔU = A + Q = 300 + 800 = 1100 J.', 0.25, 'Nhận biết', 23),
-(5, 'short_answer', 'Một bình kín chứa 2 mol khí lí tưởng ở nhiệt độ 27°C (300 K) và thể tích 8.31 lít. Lấy R = 8.31 J/(mol.K). Tính áp suất của khí trong bình theo đơn vị kPa.', NULL, NULL, NULL, NULL, '600', 'p = nRT / V = (2 × 8.31 × 300) / (8.31 × 10⁻³) = 600 000 Pa = 600 kPa.', 0.25, 'Thông hiểu', 24),
-(5, 'short_answer', 'Một sóng cơ truyền dọc theo trục Ox với tần số f = 25 Hz và tốc độ truyền sóng v = 10 m/s. Tính bước sóng λ theo đơn vị cm.', NULL, NULL, NULL, NULL, '40', 'λ = v / f = 10 / 25 = 0.4 m = 40 cm.', 0.25, 'Thông hiểu', 25),
-(5, 'short_answer', 'Một máy biến áp lí tưởng nối với điện áp hiệu dụng U₁ = 220 V ở cuộn sơ cấp có tỉ số vòng dây N₂/N₁ = 5. Tính điện áp hiệu dụng ở cuộn thứ cấp theo đơn vị V.', NULL, NULL, NULL, NULL, '1100', 'U₂ = U₁ × (N₂/N₁) = 220 × 5 = 1100 V.', 0.25, 'Vận dụng', 26),
-(5, 'short_answer', 'Một hạt nhân ²³⁵₉₂U phân hạch tỏa ra năng lượng 200 MeV. Lấy 1 eV = 1.6×10⁻¹⁹ J. Tính năng lượng tỏa ra khi 10²⁰ hạt nhân U-235 phân hạch hoàn toàn theo đơn vị MJ.', NULL, NULL, NULL, NULL, '3200', 'E = 10²⁰ × 200×10⁶ × 1.6×10⁻¹⁹ = 3.2×10⁹ J = 3200 MJ.', 0.25, 'Vận dụng', 27),
-(5, 'short_answer', 'Trong thí nghiệm giao thoa Y-âng, a = 1 mm, D = 2 m, nguồn phát đồng thời hai bức xạ λ₁ = 0.48 μm và λ₂ = 0.64 μm. Tính khoảng cách ngắn nhất (theo đơn vị mm) giữa hai vân sáng cùng màu với vân sáng trung tâm.', NULL, NULL, NULL, NULL, '3.84', 'k₁/k₂ = 0.64/0.48 = 4/3 ⇒ x = 4.i₁ = 4 × (0.48×2/1) = 3.84 mm.', 0.25, 'Vận dụng cao', 28);
-
--- ==========================================================
--- MÔN VẬT LÝ - ĐỀ SỐ 02 (exam_id = 6): 28 CÂU - 50 PHÚT - TỔNG 10.00 ĐIỂM
--- Phần I: 18 câu mcq (0.25đ = 4.50đ) | Phần II: 4 câu true_false (1.00đ = 4.00đ) | Phần III: 6 câu short_answer (0.25đ = 1.50đ)
--- ==========================================================
-INSERT INTO `questions` (`exam_id`, `question_type`, `question_text`, `option_a`, `option_b`, `option_c`, `option_d`, `correct_option`, `explanation`, `points_value`, `difficulty`, `sort_order`) VALUES
--- Phần I: Chọn đáp án (1 - 18)
-(6, 'mcq', 'Nội năng của một vật phụ thuộc vào đại lượng nào sau đây?', 'Nhiệt độ và thể tích của vật', 'Vận tốc chuyển động của cả vật', 'Độ cao của vật so với mặt đất', 'Màu sắc bề mặt vật', 'A', 'Nội năng gồm động năng phân tử (nhiệt độ) và thế năng tương tác phân tử (thể tích).', 0.25, 'Nhận biết', 1),
-(6, 'mcq', 'Mối liên hệ giữa nhiệt độ theo thang Kelvin (T) và nhiệt độ theo thang Celsius (t) là:', 'T (K) = t (°C) + 273', 'T (K) = t (°C) - 273', 'T (K) = 273 - t (°C)', 'T (K) = 1.8 t (°C) + 32', 'A', 'Quy đổi thang nhiệt độ: T (K) = t (°C) + 273.', 0.25, 'Nhận biết', 2),
-(6, 'mcq', 'Hiện tượng cộng hưởng cơ xảy ra khi tần số của ngoại lực cưỡng bức:', 'Bằng tần số riêng của hệ dao động', 'Nhỏ hơn một nửa tần số riêng', 'Bằng 0', 'Lớn gấp đôi tần số riêng', 'A', 'Cộng hưởng cơ xảy ra khi f_cưỡng bức = f_riêng.', 0.25, 'Nhận biết', 3),
-(6, 'mcq', 'Khoảng cách giữa hai nút sóng liên tiếp trên một sợi dây đang có sóng dừng bằng:', 'λ / 2', 'λ', 'λ / 4', '2λ', 'A', 'Hai nút liên tiếp trên dây có sóng dừng cách nhau λ/2.', 0.25, 'Nhận biết', 4),
-(6, 'mcq', 'Trong mạch điện xoay chiều chỉ có điện trở thuần R, cường độ dòng điện tức thời i và điện áp u:', 'Cùng pha với nhau', 'Vuông pha với nhau', 'Ngược pha với nhau', 'Lệch pha π/3', 'A', 'Mạch chỉ có R thì φ = 0 ⇒ u và i cùng pha.', 0.25, 'Nhận biết', 5),
-(6, 'mcq', 'Công thức tính công suất tiêu thụ trung bình của đoạn mạch điện xoay chiều là:', 'P = U.I.cosφ', 'P = U.I.sinφ', 'P = U₀.I₀.cosφ', 'P = U / I', 'A', 'Công suất tiêu thụ P = U.I.cosφ.', 0.25, 'Nhận biết', 6),
-(6, 'mcq', 'Trong thang sóng điện từ, bức xạ nào có bước sóng nhỏ hơn bước sóng ánh sáng tím và dùng để chụp X-quang y tế?', 'Tia X', 'Tia hồng ngoại', 'Sóng vô tuyến', 'Ánh sáng đỏ', 'A', 'Tia X có bước sóng rất ngắn (10⁻¹¹ m đến 10⁻⁸ m), khả năng đâm xuyên mạnh.', 0.25, 'Nhận biết', 7),
-(6, 'mcq', 'Trong thí nghiệm Y-âng về giao thoa ánh sáng đơn sắc, vân tối xuất hiện tại các vị trí có hiệu đường đi d₂ - d₁ bằng:', '(k + 0.5)λ (k ∈ ℤ)', 'kλ (k ∈ ℤ)', '2kλ', 'kλ / 4', 'A', 'Điều kiện vân tối: d₂ - d₁ = (k + 0.5)λ.', 0.25, 'Nhận biết', 8),
-(6, 'mcq', 'Hạt nhân nào sau đây có độ bền vững lớn nhất (năng lượng liên kết riêng lớn nhất khoảng 8.8 MeV/nuclôn)?', '⁵⁶₂₆Fe (Sắt)', '⁴₂He (Heli)', '²³⁵₉₂U (Urani)', '²₁H (Đơteri)', 'A', 'Các hạt nhân trung bình (tiêu biểu là ⁵⁶₂₆Fe) có năng lượng liên kết riêng lớn nhất.', 0.25, 'Nhận biết', 9),
-(6, 'mcq', 'Theo hệ thức Anh-xtanh, một vật có khối lượng m thì có năng lượng nghỉ E₀ bằng:', 'E₀ = m.c²', 'E₀ = m.c', 'E₀ = (1/2)m.c²', 'E₀ = m / c²', 'A', 'Hệ thức Anh-xtanh: E = m.c².', 0.25, 'Nhận biết', 10),
-(6, 'mcq', 'Một lượng khí lí tưởng thực hiện quá trình đẳng áp. Ban đầu khí có thể tích 6 lít ở nhiệt độ 300 K. Khi tăng nhiệt độ lên 450 K thì thể tích của khối khí là:', '9 lít', '4 lít', '12 lít', '7.5 lít', 'A', 'V₁/T₁ = V₂/T₂ ⇒ V₂ = 6 × (450 / 300) = 9 lít.', 0.25, 'Thông hiểu', 11),
-(6, 'mcq', 'Một đoạn dây dẫn thẳng dài 0.5 m mang dòng điện 6 A đặt vuông góc với từ trường đều B = 0.25 T. Lực từ tác dụng lên đoạn dây có độ lớn là:', '0.75 N', '1.50 N', '0.30 N', '3.00 N', 'A', 'F = B.I.l.sin(90°) = 0.25 × 6 × 0.5 = 0.75 N.', 0.25, 'Thông hiểu', 12),
-(6, 'mcq', 'Một vật dao động điều hòa với phương trình x = 10cos(4πt + π/3) (cm). Tại t = 0, vật đang ở vị trí:', 'x = 5 cm và đi theo chiều âm', 'x = 5 cm và đi theo chiều dương', 'x = -5 cm và đi theo chiều âm', 'x = 5√3 cm và đi theo chiều dương', 'A', 'Tại t = 0: x = 10cos(π/3) = 5 cm; pha φ = π/3 > 0 ⇒ v < 0 (chiều âm).', 0.25, 'Thông hiểu', 13),
-(6, 'mcq', 'Một sóng cơ truyền với tần số 50 Hz, tốc độ truyền sóng 10 m/s. Hai điểm gần nhau nhất trên phương truyền sóng dao động ngược pha cách nhau:', '10 cm', '20 cm', '5 cm', '40 cm', 'A', 'λ = v/f = 0.2 m = 20 cm ⇒ hai điểm ngược pha gần nhất cách nhau λ/2 = 10 cm.', 0.25, 'Thông hiểu', 14),
-(6, 'mcq', 'Đặt điện áp u = 220√2cos(100πt) (V) vào mạch điện thì dòng điện là i = 2√2cos(100πt - π/3) (A). Công suất tiêu thụ của mạch là:', '220 W', '440 W', '880 W', '110 W', 'A', 'P = U.I.cosφ = 220 × 2 × cos(π/3) = 220 W.', 0.25, 'Thông hiểu', 15),
-(6, 'mcq', 'Sóng điện từ tần số f = 15 MHz truyền trong chân không với tốc độ c = 3×10⁸ m/s có bước sóng là:', '20 m', '45 m', '2 m', '200 m', 'A', 'λ = c / f = (3×10⁸) / (15×10⁶) = 20 m.', 0.25, 'Thông hiểu', 16),
-(6, 'mcq', 'Trong thí nghiệm Y-âng, a = 0.5 mm, D = 1.5 m, λ = 0.6 μm. Khoảng cách từ vân sáng bậc 2 đến vân sáng bậc 5 cùng một phía vân trung tâm là:', '5.4 mm', '9.0 mm', '1.8 mm', '3.6 mm', 'A', 'i = (0.6×1.5)/0.5 = 1.8 mm ⇒ khoảng cách = 3i = 5.4 mm.', 0.25, 'Thông hiểu', 17),
-(6, 'mcq', 'Cho phản ứng phân hạch: ¹₀n + ²³⁵₉₂U → ⁹⁵₃₉Y + ¹³⁸₅₃I + x.¹₀n. Giá trị của x là:', '3', '2', '1', '4', 'A', 'Bảo toàn số khối A: 1 + 235 = 95 + 138 + x ⇒ x = 3.', 0.25, 'Thông hiểu', 18),
-
--- Phần II: Đúng / Sai 4 ý (19 - 22)
-(6, 'true_false', 'Một bình kín thể tích không đổi V = 16.62 lít chứa 2 mol khí lí tưởng ở nhiệt độ 27°C (300 K). Lấy hằng số khí lí tưởng R = 8.31 J/(mol.K).', 'a) Nhiệt độ tuyệt đối ban đầu của khối khí là T₁ = 300 K.', 'b) Áp suất ban đầu của khí trong bình là 3.0×10⁵ Pa.', 'c) Nếu đun nóng đẳng tích khối khí lên đến nhiệt độ 327°C thì áp suất khí trong bình tăng lên gấp đôi.', 'd) Ở nhiệt độ 327°C, động năng tịnh tiến trung bình của mỗi phân tử khí giảm đi một nửa so với lúc đầu.', 'D,D,D,S', 'a) Đúng.\nb) Đúng: p₁ = (2 × 8.31 × 300) / (16.62 × 10⁻³) = 300 000 Pa = 3.0×10⁵ Pa.\nc) Đúng: T₂ = 327 + 273 = 600 K = 2.T₁ ⇒ p₂ = 2.p₁.\nd) Sai: Động năng trung bình tỉ lệ thuận với T nên tăng gấp đôi.', 1.00, 'Vận dụng', 19),
-(6, 'true_false', 'Một sợi dây đàn hồi AB dài 1.2 m có hai đầu A, B cố định đang có sóng dừng ổn định với 4 bụng sóng. Biết tốc độ truyền sóng trên dây là 30 m/s.', 'a) Trên dây có tất cả 5 nút sóng (kể cả hai đầu A, B).', 'b) Bước sóng của sóng truyền trên dây là 0.6 m.', 'c) Tần số dao động của dây là 50 Hz.', 'd) Khoảng thời gian giữa hai lần liên tiếp sợi dây duỗi thẳng là 0.02 s.', 'D,D,D,S', 'a) Đúng: 4 bụng ⇒ 4 + 1 = 5 nút.\nb) Đúng: 1.2 = 4(λ/2) ⇒ λ = 0.6 m.\nc) Đúng: f = v/λ = 30 / 0.6 = 50 Hz.\nd) Sai: Hai lần dây duỗi thẳng liên tiếp cách nhau T/2 = 1/(2×50) = 0.01 s.', 1.00, 'Vận dụng', 20),
-(6, 'true_false', 'Một đoạn dây dẫn thẳng dài l = 0.5 m mang dòng điện không đổi I = 8 A đặt trong từ trường đều có cảm ứng từ B = 0.4 T sao cho dây hợp với vectơ cảm ứng từ một góc θ = 30°.', 'a) Lực từ tác dụng lên đoạn dây có phương vuông góc với cả dòng điện và đường sức từ.', 'b) Độ lớn lực từ tác dụng lên đoạn dây là 0.8 N.', 'c) Nếu xoay đoạn dây để nó nằm song song với các đường sức từ thì lực từ đạt giá trị cực đại.', 'd) Nếu giữ nguyên góc θ = 30° nhưng tăng cường độ dòng điện lên 16 A thì lực từ tăng lên 1.6 N.', 'D,D,S,D', 'a) Đúng.\nb) Đúng: F = 0.4 × 8 × 0.5 × sin(30°) = 0.8 N.\nc) Sai: Khi song song (θ = 0°) thì sin(0°) = 0 ⇒ F = 0.\nd) Đúng: F tỉ lệ thuận với I.', 1.00, 'Vận dụng', 21),
-(6, 'true_false', 'Chất phóng xạ ¹⁴₆C có chu kì bán rã T = 5730 năm. Một mẫu gỗ cổ đại có độ phóng xạ đo được chỉ bằng 25% độ phóng xạ của một mẫu gỗ tươi mới chặt có cùng khối lượng.', 'a) Hạt nhân ¹⁴₆C có 6 prôtôn và 8 nơtron.', 'b) Tuổi của mẫu gỗ cổ đại nói trên là 11460 năm.', 'c) Sau thêm 5730 năm nữa kể từ hiện tại, độ phóng xạ của mẫu gỗ cổ sẽ giảm xuống còn 12.5% so với mẫu gỗ tươi.', 'd) Chu kì bán rã của ¹⁴₆C phụ thuộc vào nhiệt độ và áp suất của môi trường xung quanh.', 'D,D,D,S', 'a) Đúng.\nb) Đúng: H/H₀ = 0.25 = 2⁻² ⇒ t = 2T = 11460 năm.\nc) Đúng: thêm 1T nữa ⇒ H/H₀ = 2⁻³ = 12.5%.\nd) Sai: Chu kì bán rã là hằng số đặc trưng của hạt nhân, không phụ thuộc điều kiện bên ngoài.', 1.00, 'Vận dụng cao', 22),
-
--- Phần III: Trả lời ngắn (23 - 28)
-(6, 'short_answer', 'Nhiệt nóng chảy riêng của nước đá là λ = 3.34×10⁵ J/kg. Tính nhiệt lượng (theo đơn vị kJ) cần cung cấp để làm nóng chảy hoàn toàn 200 g nước đá ở 0°C.', NULL, NULL, NULL, NULL, '66.8', 'Q = m.λ = 0.2 × 334 000 = 66 800 J = 66.8 kJ.', 0.25, 'Nhận biết', 23),
-(6, 'short_answer', 'Một khung dây phẳng gồm 200 vòng dây có diện tích mỗi vòng S = 25 cm² đặt vuông góc với từ trường đều. Trong 0.1 s, cảm ứng từ tăng đều từ 0.2 T lên 0.6 T. Tính độ lớn suất điện động cảm ứng trong khung theo đơn vị V.', NULL, NULL, NULL, NULL, '2', '|e_c| = 200 × 25×10⁻⁴ × (0.6 - 0.2) / 0.1 = 2.0 V.', 0.25, 'Thông hiểu', 24),
-(6, 'short_answer', 'Một vật dao động điều hòa có phương trình x = 6cos(2πt) (cm). Tính tốc độ cực đại của vật theo đơn vị cm/s (lấy π ≈ 3.14, làm tròn đến hàng phần trăm).', NULL, NULL, NULL, NULL, '37.68', 'v_max = ωA = 2π × 6 = 12π ≈ 12 × 3.14 = 37.68 cm/s.', 0.25, 'Thông hiểu', 25),
-(6, 'short_answer', 'Một máy biến áp lí tưởng truyền điện đi xa với điện áp hiệu dụng U₁ = 10 kV thì hiệu suất truyền tải đạt 91%. Để hiệu suất tăng lên 99% (công suất phát và điện trở dây không đổi), cần tăng điện áp nơi phát lên bao nhiêu kV?', NULL, NULL, NULL, NULL, '30', 'Hao phí giảm 9 lần (9% → 1%) nên U tăng √9 = 3 lần ⇒ U₂ = 30 kV.', 0.25, 'Vận dụng', 26),
-(6, 'short_answer', 'Một chất điểm dao động điều hòa với chu kì T = 1.2 s. Thời gian ngắn nhất vật đi từ vị trí có li độ x = A/2 đến vị trí cân bằng x = 0 là bao nhiêu giây?', NULL, NULL, NULL, NULL, '0.1', 'Khoảng thời gian đi từ A/2 đến 0 là T/12 = 1.2 / 12 = 0.1 s.', 0.25, 'Vận dụng', 27),
-(6, 'short_answer', 'Trong thí nghiệm Y-âng, hai khe cách nhau a = 1 mm, màn D = 2 m, chiếu ánh sáng trắng có bước sóng từ 0.38 μm đến 0.76 μm. Tại vị trí M trên màn cách vân trung tâm 3.6 mm có bao nhiêu bức xạ đơn sắc cho vân sáng?', NULL, NULL, NULL, NULL, '2', 'λ = a.x_M / (k.D) = 1.8 / k (μm). Với 0.38 ≤ 1.8/k ≤ 0.76 ⇔ 2.37 ≤ k ≤ 4.74 ⇒ k ∈ {3; 4} (2 bức xạ).', 0.25, 'Vận dụng cao', 28);
-
-
--- ==========================================================
--- MÔN HÓA HỌC - ĐỀ SỐ 01 (exam_id = 7): 28 CÂU - 50 PHÚT - TỔNG 10.00 ĐIỂM
--- Phần I: 18 câu mcq (0.25đ = 4.50đ) | Phần II: 4 câu true_false (1.00đ = 4.00đ) | Phần III: 6 câu short_answer (0.25đ = 1.50đ)
--- ==========================================================
-INSERT INTO `questions` (`exam_id`, `question_type`, `question_text`, `option_a`, `option_b`, `option_c`, `option_d`, `correct_option`, `explanation`, `points_value`, `difficulty`, `sort_order`) VALUES
--- Phần I: Chọn đáp án (1 - 18)
-(7, 'mcq', 'Công thức cấu tạo thu gọn của metyl fomat là:', 'HCOOCH₃', 'CH₃COOCH₃', 'HCOOC₂H₅', 'CH₃COOH', 'A', 'Metyl fomat tạo bởi axit fomic (HCOOH) và ancol metylic (CH₃OH) ⇒ HCOOCH₃.', 0.25, 'Nhận biết', 1),
-(7, 'mcq', 'Chất nào sau đây là thành phần chính tạo nên độ ngọt trong mật ong?', 'Fructozơ', 'Saccarozơ', 'Tinh bột', 'Xenlulozơ', 'A', 'Fructozơ chiếm khoảng 40% trong mật ong (đường mật ong).', 0.25, 'Nhận biết', 2),
-(7, 'mcq', 'Thủy phân hoàn toàn chất béo (triglixerit) trong môi trường kiềm luôn thu được muối của axit béo và:', 'Glixerol (C₃H₅(OH)₃)', 'Etylen glicol', 'Ancol etylic', 'Phenol', 'A', 'Chất béo là trieste của glixerol và axit béo.', 0.25, 'Nhận biết', 3),
-(7, 'mcq', 'Tên gọi thay thế theo danh pháp IUPAC của CH₃-NH-CH₃ là:', 'N-metylmetanamin', 'Etanamin', 'Metanamin', 'Phenylamin', 'A', 'CH₃-NH-CH₃ là amin bậc II: N-metylmetanamin (đimetylamin).', 0.25, 'Nhận biết', 4),
-(7, 'mcq', 'Trong phân tử amino axit Alanin (CH₃-CH(NH₂)-COOH), số nguyên tử cacbon là:', '3', '2', '4', '5', 'A', 'Alanin có CTPT C₃H₇NO₂ (3 nguyên tử C).', 0.25, 'Nhận biết', 5),
-(7, 'mcq', 'Polime nào sau đây được dùng làm chất dẻo phổ biến từ phản ứng trùng hợp vinyl clorua?', 'Poli(vinyl clorua) (PVC)', 'Tinh bột', 'Xenlulozơ', 'Tơ tằm', 'A', 'Trùng hợp CH₂=CHCl thu được PVC.', 0.25, 'Nhận biết', 6),
-(7, 'mcq', 'Trong pin điện hóa Zn-Cu chuẩn, ở cực âm (anôt) xảy ra quá trình:', 'Sự oxi hóa kim loại Zn: Zn → Zn²⁺ + 2e', 'Sự khử ion Zn²⁺: Zn²⁺ + 2e → Zn', 'Sự oxi hóa kim loại Cu: Cu → Cu²⁺ + 2e', 'Sự khử ion Cu²⁺: Cu²⁺ + 2e → Cu', 'A', 'Zn có tính khử mạnh hơn Cu nên đóng vai trò anôt (cực âm), xảy ra sự oxi hóa Zn.', 0.25, 'Nhận biết', 7),
-(7, 'mcq', 'Kim loại nào sau đây có tính dẫn điện tốt nhất trong tất cả các kim loại?', 'Bạc (Ag)', 'Đồng (Cu)', 'Vàng (Au)', 'Nhôm (Al)', 'A', 'Thứ tự dẫn điện: Ag > Cu > Au > Al > Fe.', 0.25, 'Nhận biết', 8),
-(7, 'mcq', 'Kim loại nào sau đây có nhiệt độ nóng chảy cao nhất, thường dùng làm dây tóc bóng đèn?', 'Vonfam (W)', 'Sắt (Fe)', 'Thủy ngân (Hg)', 'Nhôm (Al)', 'A', 'Vonfam (W) nóng chảy ở 3410°C, cao nhất trong các kim loại.', 0.25, 'Nhận biết', 9),
-(7, 'mcq', 'Hợp chất nào sau đây của canxi được dùng để đúc tượng, bó bột khi gãy xương (thạch cao nung)?', 'CaSO₄.H₂O', 'CaCO₃', 'Ca(OH)₂', 'CaCl₂', 'A', 'Thạch cao nung có công thức CaSO₄.H₂O (hoặc CaSO₄.0,5H₂O).', 0.25, 'Nhận biết', 10),
-(7, 'mcq', 'Số oxi hóa của nguyên tố sắt (Fe) trong hợp chất Fe₂(SO₄)₃ là:', '+3', '+2', '0', '+6', 'A', 'Gốc SO₄²⁻ hóa trị II nên Fe có số oxi hóa +3.', 0.25, 'Nhận biết', 11),
-(7, 'mcq', 'Trong dung dịch phức chất [Cu(NH₃)₄(H₂O)₂]²⁺, nguyên tử/ion trung tâm là:', 'Cu²⁺', 'NH₃', 'H₂O', 'OH⁻', 'A', 'Ion kim loại chuyển tiếp Cu²⁺ là nguyên tử trung tâm tạo phức với phối tử NH₃ và H₂O.', 0.25, 'Thông hiểu', 12),
-(7, 'mcq', 'Cho các dung dịch riêng biệt: glucozơ, saccarozơ, lòng trắng trứng (albumin). Thuốc thử duy nhất để phân biệt cả 3 dung dịch trên là:', 'Cu(OH)₂/OH⁻ đun nhẹ', 'Dung dịch HCl', 'Dung dịch NaCl', 'Quỳ tím', 'A', 'Ở nhiệt độ thường: albumin cho màu tím (biure), glucozơ & saccarozơ cho dung dịch xanh lam. Đun nóng: glucozơ tạo kết tủa đỏ gạch Cu₂O, saccarozơ không phản ứng.', 0.25, 'Thông hiểu', 13),
-(7, 'mcq', 'Thủy phân hoàn toàn 7.4 gam metyl axetat (CH₃COOCH₃, M = 74) bằng dung dịch NaOH dư thu được khối lượng ancol metylic (M = 32) là:', '3.2 gam', '4.6 gam', '6.4 gam', '1.6 gam', 'A', 'n_este = 0.1 mol ⇒ n_CH₃OH = 0.1 mol ⇒ m = 0.1 × 32 = 3.2 gam.', 0.25, 'Thông hiểu', 14),
-(7, 'mcq', 'Cho thế điện cực chuẩn E°(Zn²⁺/Zn) = -0.76 V và E°(Cu²⁺/Cu) = +0.34 V. Sức điện động chuẩn của pin Galvani Zn-Cu bằng:', '1.10 V', '0.42 V', '-1.10 V', '0.76 V', 'A', 'E°_pin = E°_catôt - E°_anôt = 0.34 - (-0.76) = 1.10 V.', 0.25, 'Thông hiểu', 15),
-(7, 'mcq', 'Ngâm một lá kẽm (Zn) trong dung dịch H₂SO₄ loãng thấy khí thoát ra chậm. Nhỏ thêm vài giọt dung dịch CuSO₄ vào thấy khí thoát ra nhanh hơn hẳn là do:', 'Xuất hiện cặp pin điện hóa Zn-Cu gây ra ăn mòn điện hóa', 'CuSO₄ làm tăng nồng độ axit H₂SO₄', 'Cu đẩy Zn ra khỏi dung dịch axit', 'H₂SO₄ bị phân hủy nhanh hơn', 'A', 'Zn đẩy Cu bám lên Zn tạo thành vô số pin điện hóa Zn-Cu, tốc độ ăn mòn tăng mạnh.', 0.25, 'Thông hiểu', 16),
-(7, 'mcq', 'Để làm mềm nước có tính cứng toàn phần, hóa chất hiệu quả nhất là:', 'Dung dịch Na₂CO₃ (hoặc Na₃PO₄)', 'Đun sôi nước', 'Dung dịch HCl', 'Dung dịch NaCl', 'A', 'Ion CO₃²⁻ kết tủa hoàn toàn cả Ca²⁺ và Mg²⁺ trong nước cứng toàn phần.', 0.25, 'Thông hiểu', 17),
-(7, 'mcq', 'Cho 5.6 gam Fe (M = 56) tác dụng với lượng dư dung dịch AgNO₃. Sau phản ứng hoàn toàn, khối lượng Ag (M = 108) thu được tối đa là:', '32.4 gam', '21.6 gam', '10.8 gam', '16.2 gam', 'A', 'n_Fe = 0.1 mol. Do AgNO₃ dư nên Fe lên Fe³⁺ ⇒ n_Ag = 3.n_Fe = 0.3 mol ⇒ m = 0.3 × 108 = 32.4 gam.', 0.25, 'Thông hiểu', 18),
-
--- Phần II: Đúng / Sai 4 ý (19 - 22)
-(7, 'true_false', 'Tiến hành thí nghiệm phản ứng xà phòng hóa chất béo: Cho vào bát sứ khoảng 2 gam mỡ lợn và 4 ml dung dịch NaOH 40%, đun sôi nhẹ và khuấy liên tục trong 10 phút, thêm từng giọt nước cất để giữ thể tích không đổi. Sau đó rót thêm 10 ml dung dịch NaCl bão hòa vào, khuấy nhẹ rồi để nguội.', 'a) Phản ứng xảy ra khi đun nóng mỡ lợn với dung dịch NaOH là phản ứng thuận nghịch.', 'b) Việc thêm nước cất trong quá trình đun nhằm tránh hỗn hợp bị cạn khô để phản ứng xảy ra hoàn toàn.', 'c) Sau khi thêm dung dịch NaCl bão hòa và để nguội, lớp chất rắn màu trắng nổi lên trên là muối natri của axit béo.', 'd) Dung dịch NaCl bão hòa làm giảm độ tan của xà phòng và tăng tỉ trọng lớp dung dịch phía dưới để tách xà phòng dễ dàng.', 'S,D,D,D', 'a) Sai: Xà phòng hóa trong kiềm là phản ứng một chiều.\nb) Đúng.\nc) Đúng.\nd) Đúng.', 1.00, 'Thông hiểu', 19),
-(7, 'true_false', 'Xét dung dịch của các amino axit: Glyxin (H₂N-CH₂-COOH), Axit glutamic (HOOC-CH₂-CH₂-CH(NH₂)-COOH) và Lysin (H₂N-[CH₂]₄-CH(NH₂)-COOH).', 'a) Ở nhiệt độ thường, các amino axit này đều là chất rắn kết tinh, tan tốt trong nước.', 'b) Dung dịch Axit glutamic làm quỳ tím chuyển sang màu đỏ (hồng).', 'c) Dung dịch Lysin không làm đổi màu giấy quỳ tím.', 'd) Cả ba chất trên đều có tính lưỡng tính, tác dụng được với cả dung dịch HCl và dung dịch NaOH.', 'D,D,S,D', 'a) Đúng.\nb) Đúng: có 2 nhóm -COOH và 1 nhóm -NH₂.\nc) Sai: Lysin có 2 nhóm -NH₂ và 1 nhóm -COOH nên làm quỳ tím hóa xanh.\nd) Đúng.', 1.00, 'Thông hiểu', 20),
-(7, 'true_false', 'Thực hiện điện phân 200 ml dung dịch CuSO₄ 1M với điện cực trơ bằng dòng điện có cường độ I = 5 A trong thời gian t = 3860 giây (biết hằng số Faraday F = 96500 C/mol).', 'a) Số mol electron trao đổi tại mỗi điện cực là 0.2 mol.', 'b) Tại catôt xảy ra quá trình khử ion Cu²⁺: Cu²⁺ + 2e → Cu.', 'c) Sau 3860 giây, khối lượng kim loại Cu (M = 64) bám trên catôt là 12.8 gam.', 'd) Tại anôt thu được 0.05 mol khí O₂.', 'D,D,S,D', 'a) Đúng: n_e = (5 × 3860) / 96500 = 0.2 mol.\nb) Đúng.\nc) Sai: n_Cu = 0.2 / 2 = 0.1 mol ⇒ m_Cu = 6.4 gam.\nd) Đúng: n_O₂ = n_e / 4 = 0.05 mol.', 1.00, 'Vận dụng', 21),
-(7, 'true_false', 'Trong công nghiệp luyện gang, người ta khử 1 tấn quặng hematit chứa 80% khối lượng Fe₂O₃ (tạp chất trơ không chứa sắt) bằng khí CO theo phản ứng: Fe₂O₃ + 3CO → 2Fe + 3CO₂.', 'a) Phản ứng khử oxit sắt bằng khí CO thuộc phương pháp nhiệt luyện.', 'b) Trong phản ứng trên, khí CO đóng vai trò là chất oxi hóa.', 'c) Khối lượng Fe₂O₃ nguyên chất có trong 1 tấn (1000 kg) quặng là 800 kg.', 'd) Với hiệu suất toàn bộ quá trình đạt 90%, khối lượng sắt (Fe = 56, O = 16) thu được là 504 kg.', 'D,S,D,D', 'a) Đúng.\nb) Sai: CO là chất khử.\nc) Đúng: 1000 × 80% = 800 kg.\nd) Đúng: n_Fe₂O₃ = 5 kmol ⇒ m_Fe = 2 × 5 × 56 × 90% = 504 kg.', 1.00, 'Vận dụng cao', 22),
-
--- Phần III: Trả lời ngắn (23 - 28)
-(7, 'short_answer', 'Số nguyên tử hiđro (H) có trong một phân tử axit oleic (C₁₇H₃₃COOH) là bao nhiêu?', NULL, NULL, NULL, NULL, '34', 'C₁₇H₃₃COOH = C₁₈H₃₄O₂ ⇒ có 34 nguyên tử H.', 0.25, 'Nhận biết', 23),
-(7, 'short_answer', 'Cho dãy các chất: etyl axetat, glucozơ, saccarozơ, tinh bột, triolein. Có bao nhiêu chất trong dãy tham gia phản ứng thủy phân trong môi trường axit?', NULL, NULL, NULL, NULL, '4', 'Gồm etyl axetat, saccarozơ, tinh bột, triolein (4 chất).', 0.25, 'Thông hiểu', 24),
-(7, 'short_answer', 'Thủy phân hoàn toàn 12 gam metyl fomat (HCOOCH₃, M = 60) trong dung dịch NaOH dư. Tính khối lượng muối natri fomat (HCOONa, M = 68) thu được theo đơn vị gam.', NULL, NULL, NULL, NULL, '13.6', 'n_este = 12/60 = 0.2 mol ⇒ m_muối = 0.2 × 68 = 13.6 gam.', 0.25, 'Thông hiểu', 25),
-(7, 'short_answer', 'Lên men 45 gam glucozơ (M = 180) thành ancol etylic (M = 46) với hiệu suất 80%. Tính khối lượng ancol etylic thu được theo đơn vị gam.', NULL, NULL, NULL, NULL, '18.4', 'n_glu = 0.25 mol ⇒ n_ancol = 2 × 0.25 × 0.8 = 0.4 mol ⇒ m = 0.4 × 46 = 18.4 gam.', 0.25, 'Vận dụng', 26),
-(7, 'short_answer', 'Cho 10.8 gam kim loại Al (M = 27) tác dụng hoàn toàn với dung dịch HNO₃ loãng dư thu được V lít khí N₂O (sản phẩm khử duy nhất, ở ĐKC 24.79 lít/mol). Tính giá trị của V (làm tròn đến hàng phần trăm).', NULL, NULL, NULL, NULL, '3.72', 'n_Al = 0.4 mol ⇒ 8.n_N₂O = 3.n_Al ⇒ n_N₂O = 0.15 mol ⇒ V = 0.15 × 24.79 = 3.7185 ≈ 3.72 lít.', 0.25, 'Vận dụng', 27),
-(7, 'short_answer', 'Hòa tan hoàn toàn 16 gam một oxit sắt FeₓOᵧ bằng dung dịch H₂SO₄ đặc, nóng dư thu được 1.2395 lít khí SO₂ (ở ĐKC 24.79 lít/mol) và dung dịch chứa 40 gam muối Fe₂(SO₄)₃ (M = 400). Tính khối lượng sắt (Fe = 56) có trong 16 gam oxit sắt ban đầu theo đơn vị gam.', NULL, NULL, NULL, NULL, '11.2', 'n_Fe₂(SO₄)₃ = 40/400 = 0.1 mol ⇒ n_Fe = 0.2 mol ⇒ m_Fe = 0.2 × 56 = 11.2 gam.', 0.25, 'Vận dụng cao', 28);
-
--- ==========================================================
--- MÔN HÓA HỌC - ĐỀ SỐ 02 (exam_id = 8): 28 CÂU - 50 PHÚT - TỔNG 10.00 ĐIỂM
--- Phần I: 18 câu mcq (0.25đ = 4.50đ) | Phần II: 4 câu true_false (1.00đ = 4.00đ) | Phần III: 6 câu short_answer (0.25đ = 1.50đ)
--- ==========================================================
-INSERT INTO `questions` (`exam_id`, `question_type`, `question_text`, `option_a`, `option_b`, `option_c`, `option_d`, `correct_option`, `explanation`, `points_value`, `difficulty`, `sort_order`) VALUES
--- Phần I: Chọn đáp án (1 - 18)
-(8, 'mcq', 'Chất nào sau đây có công thức phân tử C₂H₄O₂ và phản ứng được với dung dịch NaOH?', 'Metyl fomat (HCOOCH₃)', 'Glucozơ', 'Etyl axetat', 'Ancol etylic', 'A', 'HCOOCH₃ có CTPT C₂H₄O₂ và là este nên tác dụng với NaOH.', 0.25, 'Nhận biết', 1),
-(8, 'mcq', 'Sản phẩm của phản ứng este hóa giữa axit axetic và ancol etylic là:', 'Etyl axetat và nước', 'Metyl axetat và nước', 'Natri axetat và etanol', 'Etyl fomat và nước', 'A', 'CH₃COOH + C₂H₅OH ⇄ CH₃COOC₂H₅ + H₂O.', 0.25, 'Nhận biết', 2),
-(8, 'mcq', 'Chất nào sau đây KHÔNG tan trong nước lạnh nhưng trương phồng tạo hồ tinh bột khi đun nóng?', 'Tinh bột', 'Saccarozơ', 'Glucozơ', 'Fructozơ', 'A', 'Tinh bột tạo dung dịch keo hồ tinh bột trong nước nóng.', 0.25, 'Nhận biết', 3),
-(8, 'mcq', 'Amin nào sau đây là amin thơm?', 'Anilin (C₆H₅NH₂)', 'Metylamin', 'Đimetylamin', 'Etylamin', 'A', 'Anilin (C₆H₅NH₂) có nhóm -NH₂ gắn trực tiếp vào vòng benzen.', 0.25, 'Nhận biết', 4),
-(8, 'mcq', 'Số liên kết peptit trong phân tử tetrapeptit mạch hở Ala-Gly-Val-Gly là:', '3', '4', '2', '5', 'A', 'Tetrapeptit gồm 4 gốc α-amino axit nên có 4 - 1 = 3 liên kết peptit.', 0.25, 'Nhận biết', 5),
-(8, 'mcq', 'Monome dùng để tổng hợp tơ nitron (tơ olon) là:', 'Acrilonitrin (CH₂=CH-CN)', 'Vinyl clorua', 'Etilen', 'Stiren', 'A', 'Trùng hợp acrilonitrin thu được poli(acrilonitrin) để kéo tơ nitron.', 0.25, 'Nhận biết', 6),
-(8, 'mcq', 'Ở nhiệt độ thường, kim loại nào sau đây có tính dẻo cao nhất?', 'Vàng (Au)', 'Bạc (Ag)', 'Đồng (Cu)', 'Nhôm (Al)', 'A', 'Vàng (Au) là kim loại dẻo nhất.', 0.25, 'Nhận biết', 7),
-(8, 'mcq', 'Kim loại nào sau đây tan hoàn toàn trong dung dịch NaOH dư ở nhiệt độ thường?', 'Nhôm (Al)', 'Sắt (Fe)', 'Đồng (Cu)', 'Magie (Mg)', 'A', '2Al + 2NaOH + 2H₂O → 2NaAlO₂ + 3H₂↑.', 0.25, 'Nhận biết', 8),
-(8, 'mcq', 'Nước vôi trong là dung dịch của chất nào sau đây?', 'Ca(OH)₂', 'NaOH', 'KOH', 'BaCl₂', 'A', 'Nước vôi trong là dung dịch canxi hiđroxit Ca(OH)₂.', 0.25, 'Nhận biết', 9),
-(8, 'mcq', 'Công thức hóa học của oxit sắt từ là:', 'Fe₃O₄', 'FeO', 'Fe₂O₃', 'FeCO₃', 'A', 'Oxit sắt từ là Fe₃O₄.', 0.25, 'Nhận biết', 10),
-(8, 'mcq', 'Phương pháp điều chế các kim loại kiềm và kiềm thổ (Na, Ca, Mg) trong công nghiệp là:', 'Điện phân nóng chảy', 'Thủy luyện', 'Nhiệt luyện bằng CO', 'Điện phân dung dịch', 'A', 'Kim loại hoạt động mạnh (Li → Al) điều chế bằng điện phân nóng chảy.', 0.25, 'Nhận biết', 11),
-(8, 'mcq', 'Chất nào sau đây thuộc loại tơ bán tổng hợp (tơ nhân tạo)?', 'Tơ visco', 'Tơ tằm', 'Tơ nilon-6,6', 'Tơ capron', 'A', 'Tơ visco chế biến hóa học từ xenlulozơ thiên nhiên.', 0.25, 'Nhận biết', 12),
-(8, 'mcq', 'Thủy phân este X (C₄H₈O₂) trong dung dịch NaOH thu được muối natri axetat và ancol Y. Công thức của Y là:', 'C₂H₅OH', 'CH₃OH', 'C₃H₇OH', 'C₄H₉OH', 'A', 'Muối là CH₃COONa (2C) ⇒ ancol Y là C₂H₅OH.', 0.25, 'Thông hiểu', 13),
-(8, 'mcq', 'Sắp xếp các chất theo chiều tăng dần tính bazơ: (1) NH₃, (2) C₆H₅NH₂, (3) CH₃NH₂.', '(2) < (1) < (3)', '(1) < (2) < (3)', '(3) < (1) < (2)', '(2) < (3) < (1)', 'A', 'Anilin (2) < NH₃ (1) < Metylamin (3).', 0.25, 'Thông hiểu', 14),
-(8, 'mcq', 'Nhúng thanh Fe vào 200 ml dung dịch CuSO₄ 0.5M đến khi phản ứng hoàn toàn. Độ tăng khối lượng của thanh Fe là (Fe = 56, Cu = 64):', '0.8 gam', '6.4 gam', '5.6 gam', '1.6 gam', 'A', 'n_Cu²⁺ = 0.1 mol ⇒ Δm = 0.1 × (64 - 56) = 0.8 gam.', 0.25, 'Thông hiểu', 15),
-(8, 'mcq', 'Cho 3.9 gam kali (K = 39) tác dụng hết với nước dư, thu được 500 ml dung dịch KOH. Nồng độ mol của dung dịch KOH là:', '0.2 M', '0.1 M', '0.4 M', '0.5 M', 'A', 'n_KOH = n_K = 0.1 mol ⇒ C_M = 0.1 / 0.5 = 0.2 M.', 0.25, 'Thông hiểu', 16),
-(8, 'mcq', 'Cho bột Fe dư tác dụng với dung dịch HNO₃ loãng. Sau khi phản ứng hoàn toàn, muối sắt thu được trong dung dịch là:', 'Fe(NO₃)₂', 'Fe(NO₃)₃', 'Fe₂(SO₄)₃', 'FeCl₂', 'A', 'Fe dư khử Fe³⁺ về Fe²⁺.', 0.25, 'Thông hiểu', 17),
-(8, 'mcq', 'Cho 4.958 lít khí CO₂ (ở ĐKC 24.79 lít/mol) tác dụng với dung dịch KOH dư. Khối lượng muối K₂CO₃ (M = 138) thu được là:', '27.6 gam', '13.8 gam', '20.0 gam', '19.8 gam', 'A', 'n_CO₂ = 4.958/24.79 = 0.2 mol ⇒ m_K₂CO₃ = 0.2 × 138 = 27.6 gam.', 0.25, 'Thông hiểu', 18),
-
--- Phần II: Đúng / Sai 4 ý (19 - 22)
-(8, 'true_false', 'Cho thế điện cực chuẩn của một số cặp oxi hóa - khử: E°(Mg²⁺/Mg) = -2.37 V, E°(Fe²⁺/Fe) = -0.44 V, E°(Cu²⁺/Cu) = +0.34 V, E°(Ag⁺/Ag) = +0.80 V.', 'a) Kim loại Mg có tính khử mạnh nhất trong 4 kim loại Mg, Fe, Cu, Ag.', 'b) Ion Ag⁺ có tính oxi hóa mạnh hơn ion Cu²⁺.', 'c) Kim loại Cu khử được ion Fe²⁺ trong dung dịch muối FeSO₄.', 'd) Sức điện động chuẩn của pin điện hóa Fe-Ag là 1.24 V.', 'D,D,S,D', 'a) Đúng: E° nhỏ nhất (-2.37 V) ⇒ tính khử mạnh nhất.\nb) Đúng: E°(Ag⁺/Ag) > E°(Cu²⁺/Cu).\nc) Sai: E°(Cu²⁺/Cu) > E°(Fe²⁺/Fe) nên Cu không khử được Fe²⁺.\nd) Đúng: E°_pin = 0.80 - (-0.44) = 1.24 V.', 1.00, 'Thông hiểu', 19),
-(8, 'true_false', 'Trong dung dịch nước, các ion kim loại chuyển tiếp như Cu²⁺, Co²⁺, Fe³⁺ có khả năng tạo phức chất với các phối tử như H₂O, NH₃, Cl⁻. Khi nhỏ từ từ dung dịch NH₃ đến dư vào dung dịch CuSO₄ loãng (màu xanh nhạt), lúc đầu thấy xuất hiện kết tủa xanh nhạt, sau đó kết tủa tan dần tạo thành dung dịch màu xanh lam đậm chứa phức chất [Cu(NH₃)₄(H₂O)₂]²⁺.', 'a) Nguyên tử trung tâm trong phức chất [Cu(NH₃)₄(H₂O)₂]²⁺ là ion Cu²⁺.', 'b) Kết tủa xanh nhạt xuất hiện lúc đầu có công thức là Cu(OH)₂.', 'c) Phức chất [Cu(NH₃)₄(H₂O)₂]²⁺ có số phối trí bằng 4.', 'd) Phức chất trên mang điện tích +2.', 'D,D,S,D', 'a) Đúng.\nb) Đúng.\nc) Sai: Có 4 phối tử NH₃ và 2 phối tử H₂O nên số phối trí là 4 + 2 = 6.\nd) Đúng.', 1.00, 'Vận dụng', 20),
-(8, 'true_false', 'Este E mạch hở có công thức phân tử C₄H₆O₂. Đun nóng E trong dung dịch NaOH thu được muối natri axetat (CH₃COONa) và chất hữu cơ F có khả năng tham gia phản ứng tráng bạc.', 'a) Este E có chứa 1 liên kết đôi C=C trong phân tử.', 'b) Công thức cấu tạo của este E là CH₃COOCH=CH₂ (vinyl axetat).', 'c) Chất hữu cơ F thu được sau phản ứng là ancol etylic (C₂H₅OH).', 'd) Khi đun nóng E với H₂O có xúc tác axit, thu được sản phẩm có mùi xốc của anđehit axetic.', 'D,D,S,D', 'a) Đúng: k = (2×4+2-6)/2 = 2 (1 nhóm COO và 1 nối đôi C=C).\nb) Đúng.\nc) Sai: CH₃COOCH=CH₂ + NaOH → CH₃COONa + CH₃CHO (anđehit axetic).\nd) Đúng.', 1.00, 'Vận dụng', 21),
-(8, 'true_false', 'Cho 21.6 gam hỗn hợp X gồm Fe, FeO, Fe₂O₃ và Fe₃O₄ tác dụng hết với dung dịch H₂SO₄ đặc, nóng dư thu được 3.7185 lít khí SO₂ (sản phẩm khử duy nhất, ở ĐKC 24.79 lít/mol) và dung dịch Y chỉ chứa muối Fe₂(SO₄)₃.', 'a) Số mol khí SO₂ thu được là 0.15 mol.', 'b) Khi quy đổi hỗn hợp X thành Fe (a mol) và O (b mol), ta có phương trình bảo toàn khối lượng: 56a + 16b = 21.6.', 'c) Phương trình bảo toàn electron cho quá trình trên là 3a - 2b = 0.15.', 'd) Khối lượng kim loại sắt có trong 21.6 gam hỗn hợp X ban đầu là 16.8 gam.', 'D,D,S,D', 'a) Đúng: n_SO₂ = 3.7185 / 24.79 = 0.15 mol.\nb) Đúng.\nc) Sai: 3a = 2b + 2.n_SO₂ ⇔ 3a - 2b = 0.30.\nd) Đúng: Giải hệ 56a + 16b = 21.6 và 3a - 2b = 0.30 ⇒ a = 0.3 mol ⇒ m_Fe = 16.8 gam.', 1.00, 'Vận dụng cao', 22),
-
--- Phần III: Trả lời ngắn (23 - 28)
-(8, 'short_answer', 'Cho 4.5 gam etylamin (C₂H₅NH₂, M = 45) tác dụng hoàn toàn với lượng dư axit HCl. Tính khối lượng muối thu được theo đơn vị gam.', NULL, NULL, NULL, NULL, '8.15', 'n_amin = 4.5/45 = 0.1 mol ⇒ m_muối = 4.5 + 0.1 × 36.5 = 8.15 gam.', 0.25, 'Nhận biết', 23),
-(8, 'short_answer', 'Thủy phân hoàn toàn 32.4 gam tinh bột thành glucozơ (H = 75%), sau đó lên men toàn bộ glucozơ thành ancol etylic (H = 80%). Tính khối lượng ancol etylic thu được theo đơn vị gam.', NULL, NULL, NULL, NULL, '11.04', 'n_tinh bột = 0.2 mol ⇒ n_ancol = 2 × 0.2 × 0.75 × 0.80 = 0.24 mol ⇒ m = 0.24 × 46 = 11.04 gam.', 0.25, 'Thông hiểu', 24),
-(8, 'short_answer', 'Cho 2.479 lít khí CO₂ (ở ĐKC 24.79 lít/mol) hấp thụ hết vào 150 ml dung dịch NaOH 1M. Tính tổng khối lượng muối thu được trong dung dịch sau phản ứng theo đơn vị gam.', NULL, NULL, NULL, NULL, '9.5', 'n_CO₂ = 0.1 mol, n_NaOH = 0.15 mol ⇒ n_Na₂CO₃ = 0.05 mol; n_NaHCO₃ = 0.05 mol ⇒ m = 0.05×106 + 0.05×84 = 9.5 gam.', 0.25, 'Thông hiểu', 25),
-(8, 'short_answer', 'Hòa tan hết 9.6 gam Cu trong dung dịch HNO₃ đặc nóng dư thu được V lít khí NO₂ (sản phẩm khử duy nhất, ở ĐKC 24.79 lít/mol). Tính giá trị của V (làm tròn đến hàng phần trăm).', NULL, NULL, NULL, NULL, '7.44', 'n_Cu = 0.15 mol ⇒ n_NO₂ = 2×0.15 = 0.3 mol ⇒ V = 0.3 × 24.79 = 7.437 ≈ 7.44 lít.', 0.25, 'Vận dụng', 26),
-(8, 'short_answer', 'Thủy phân hoàn toàn hỗn hợp gồm 0.1 mol vinyl axetat và 0.1 mol phenyl fomat bằng lượng vừa đủ dung dịch NaOH đun nóng. Tổng số mol NaOH đã phản ứng là bao nhiêu?', NULL, NULL, NULL, NULL, '0.3', 'Vinyl axetat tỉ lệ 1:1 (0.1 mol); Phenyl fomat là este của phenol tỉ lệ 1:2 (0.2 mol) ⇒ 0.3 mol.', 0.25, 'Vận dụng', 27),
-(8, 'short_answer', 'Hỗn hợp E gồm este đơn chức X và este hai chức Y đều mạch hở. Thủy phân hoàn toàn 0.15 mol E cần vừa đủ 0.20 mol NaOH thu được hỗn hợp muối và một ancol duy nhất. Tính số mol của este hai chức Y trong 0.15 mol E.', NULL, NULL, NULL, NULL, '0.05', 'n_X + n_Y = 0.15 và n_X + 2.n_Y = 0.20 ⇒ n_Y = 0.05 mol.', 0.25, 'Vận dụng cao', 28);
-
--- DỮ LIỆU MẪU LỊCH SỬ LÀM BÀI (KHỚP 22 CÂU TOÁN / 40 CÂU ANH / 28 CÂU LÝ-HÓA)
-INSERT INTO `exam_attempts` (`id`, `user_id`, `exam_id`, `score`, `correct_count`, `total_questions`, `time_spent_seconds`, `tab_switch_count`, `completed_at`) VALUES
-(1, 2, 1, 8.75, 19, 22, 4620, 0, DATE_SUB(NOW(), INTERVAL 2 DAY)),
-(2, 2, 3, 8.75, 35, 40, 2940, 1, DATE_SUB(NOW(), INTERVAL 1 DAY)),
-(3, 3, 5, 8.50, 24, 28, 2580, 0, DATE_SUB(NOW(), INTERVAL 5 HOUR)),
-(4, 2, 7, 9.00, 25, 28, 2410, 2, DATE_SUB(NOW(), INTERVAL 2 HOUR));
-
--- ==========================================================
--- THÊM 12 ĐỀ THI MỚI (MỖI MÔN THÊM 3 ĐỀ -> TỔNG 5 ĐỀ / MÔN)
--- ==========================================================
-INSERT INTO `exams` (`id`, `subject_id`, `title`, `description`, `duration_minutes`, `level`, `is_active`) VALUES
+(8, 4, 'Đề Thi Thử THPT Quốc Gia 2026 Môn Hóa Học - Đề Số 02', '28 câu – 50 phút chuẩn cấu trúc mới 2026 (ĐKC 24.79 lít/mol): Este-Lipit, Cacbohidrat, Amin-Peptit, Pin điện hóa, Phức chất & Kim loại.', 50, 'Chuẩn THPT QG', 1),
 (9, 1, 'Đề Thi Thử THPT Quốc Gia 2026 Môn Toán - Đề Số 03', '22 câu – 90 phút chuẩn cấu trúc mới 2026: Giải tích, Hình học không gian, Oxyz, Thống kê & Xác suất có điều kiện.', 90, 'Chuẩn THPT QG', 1),
 (10, 1, 'Đề Thi Thử THPT Quốc Gia 2026 Môn Toán - Đề Số 04', '22 câu – 90 phút chuẩn cấu trúc mới 2026: Ứng dụng đạo hàm, Tích phân, Hình Oxyz & Bài toán thực tế.', 90, 'Chuẩn THPT QG', 1),
 (11, 1, 'Đề Thi Thử THPT Quốc Gia 2026 Môn Toán - Đề Số 05', '22 câu – 90 phút chuẩn cấu trúc mới 2026: Tổng ôn chuyên sâu chuẩn ma trận Bộ GD&ĐT.', 90, 'Chuẩn THPT QG', 1),
@@ -520,7 +128,339 @@ INSERT INTO `exams` (`id`, `subject_id`, `title`, `description`, `duration_minut
 (19, 4, 'Đề Thi Thử THPT Quốc Gia 2026 Môn Hóa Học - Đề Số 04', '28 câu – 50 phút chuẩn cấu trúc mới 2026 (ĐKC 24.79 lít/mol): Peptit, Polime, Phức chất & Kim loại.', 50, 'Chuẩn THPT QG', 1),
 (20, 4, 'Đề Thi Thử THPT Quốc Gia 2026 Môn Hóa Học - Đề Số 05', '28 câu – 50 phút chuẩn cấu trúc mới 2026 (ĐKC 24.79 lít/mol): Tổng hợp vô cơ - hữu cơ.', 50, 'Chuẩn THPT QG', 1);
 
-INSERT INTO `questions` (`exam_id`, `question_type`, `question_text`, `option_a`, `option_b`, `option_c`, `option_d`, `correct_option`, `explanation`, `points_value`, `difficulty`, `sort_order`) VALUES
+INSERT INTO questions (exam_id, question_type, question_text, option_a, option_b, option_c, option_d, correct_option, explanation, points_value, difficulty, sort_order) VALUES
+(1, 'mcq', 'Hàm số y = -x³ + 3x + 2 đồng biến trên khoảng nào dưới đây?', '(1; +∞)', '(-∞; -1)', '(-∞; +∞)', '(-1; 1)', 'D', 'y'' = -3x² + 3 > 0 ⇔ x² < 1 ⇔ -1 < x < 1.', 0.25, 'Nhận biết', 1),
+(1, 'mcq', 'Tiệm cận đứng của đồ thị hàm số y = (2x - 1)/(x + 3) là đường thẳng có phương trình:', 'x = 3', 'x = -3', 'y = 2', 'y = -1/3', 'B', 'Mẫu số x + 3 = 0 ⇔ x = -3 (không là nghiệm tử số) nên x = -3 là tiệm cận đứng.', 0.25, 'Nhận biết', 2),
+(1, 'mcq', 'Nguyên hàm của hàm số f(x) = 4x³ + sin(x) là:', 'x⁴ - sin(x) + C', '12x² - cos(x) + C', 'x⁴ + cos(x) + C', 'x⁴ - cos(x) + C', 'D', '∫(4x³ + sin x)dx = x⁴ - cos(x) + C.', 0.25, 'Nhận biết', 3),
+(1, 'mcq', 'Tập nghiệm của bất phương trình log₂(x - 1) < 3 là:', '(1; 7)', '(1; 9)', '(-∞; 9)', '(9; +∞)', 'B', 'Điều kiện x > 1. BPT ⇔ x - 1 < 2³ = 8 ⇔ x < 9. Vậy tập nghiệm là (1; 9).', 0.25, 'Nhận biết', 4),
+(1, 'mcq', 'Trong không gian Oxyz, cho hai điểm A(1; -2; 3) và B(3; 0; -1). Tọa độ vectơ AB là:', '(2; 2; -4)', '(-2; -2; 4)', '(2; -1; 1)', '(4; -2; 2)', 'A', 'AB = (3-1; 0-(-2); -1-3) = (2; 2; -4).', 0.25, 'Nhận biết', 5),
+(1, 'mcq', 'Cho cấp số nhân (uₙ) có u₁ = 3 và công bội q = 2. Giá trị của u₄ bằng:', '12', '16', '48', '24', 'D', 'u₄ = u₁.q³ = 3 × 2³ = 24.', 0.25, 'Nhận biết', 6),
+(1, 'mcq', 'Khảo sát thời gian tập thể dục (phút/ngày) của một nhóm học sinh: [0;20): 5, [20;40): 12, [40;60): 8. Nhóm chứa mốt của mẫu số liệu ghép nhóm là:', '[20; 40)', '[0; 60)', '[40; 60)', '[0; 20)', 'A', 'Nhóm có tần số lớn nhất (12 học sinh) là nhóm [20; 40).', 0.25, 'Nhận biết', 7),
+(1, 'mcq', 'Trong không gian Oxyz, mặt phẳng (P): 3x - y + 2z - 6 = 0 đi qua điểm nào dưới đây?', 'M(2; 0; 0)', 'P(0; 0; -3)', 'N(0; 6; 0)', 'Q(1; 1; 1)', 'A', 'Thay M(2; 0; 0) vào (P): 3(2) - 0 + 0 - 6 = 0 (thỏa mãn).', 0.25, 'Nhận biết', 8),
+(1, 'mcq', 'Cho hai biến cố độc lập A và B với P(A) = 0.4 và P(B) = 0.5. Xác suất P(A ∩ B) bằng:', '0.90', '0.20', '0.45', '0.10', 'B', 'Vì A, B độc lập nên P(A ∩ B) = P(A).P(B) = 0.4 × 0.5 = 0.20.', 0.25, 'Thông hiểu', 9),
+(1, 'mcq', 'Giá trị lớn nhất của hàm số f(x) = x + 4/x trên đoạn [1; 3] bằng:', '5', '13/3', '4', '6', 'A', 'f''(x) = 1 - 4/x² = 0 ⇒ x = 2 ∈ [1; 3]. f(1) = 5, f(2) = 4, f(3) = 13/3 ⇒ GTLN bằng 5.', 0.25, 'Thông hiểu', 10),
+(1, 'mcq', 'Diện tích hình phẳng giới hạn bởi đồ thị hàm số y = eˣ, trục hoành và hai đường thẳng x = 0, x = 2 là:', 'e² - 1', '2e', 'e²', 'e² + 1', 'A', 'S = ∫(0→2) eˣ dx = e² - e⁰ = e² - 1.', 0.25, 'Thông hiểu', 11),
+(1, 'mcq', 'Cho hình chóp S.ABCD có đáy là hình vuông cạnh a, SA ⊥ (ABCD) và SA = a√3. Góc giữa đường thẳng SC và mặt phẳng (ABCD) gần nhất với giá trị nào?', '50.8°', '60°', '30°', '45°', 'A', 'AC = a√2. tan(SC, (ABCD)) = SA/AC = √3/√2 = √6/2 ≈ 1.2247 ⇒ góc ≈ 50.77°.', 0.25, 'Thông hiểu', 12),
+(1, 'true_false', 'Cho hàm số bậc ba y = f(x) = x³ - 3x² + 2. Xét tính đúng sai của các khẳng định sau:', 'a) Đạo hàm của hàm số là f''(x) = 3x² - 6x.', 'b) Hàm số đạt cực đại tại x = 2.', 'c) Giá trị cực tiểu của hàm số bằng -2.', 'd) Đường thẳng đi qua hai điểm cực trị của đồ thị hàm số là y = -2x + 2.', 'D,S,D,D', 'a) Đúng: f''(x) = 3x² - 6x.
+b) Sai: f''(x) = 0 ⇔ x = 0 (CĐ) hoặc x = 2 (CT).
+c) Đúng: y_CT = f(2) = 8 - 12 + 2 = -2.
+d) Đúng: Hai điểm cực trị là A(0; 2) và B(2; -2) đều nằm trên y = -2x + 2.', 1.00, 'Thông hiểu', 13),
+(1, 'true_false', 'Một ô tô đang chạy với tốc độ 20 m/s thì người lái xe hãm phanh, từ thời điểm đó ô tô chuyển động chậm dần đều với vận tốc v(t) = 20 - 4t (m/s), trong đó t (giây) là khoảng thời gian tính từ lúc hãm phanh.', 'a) Gia tốc của ô tô trong quá trình hãm phanh là -4 m/s².', 'b) Thời gian từ lúc hãm phanh đến khi ô tô dừng hẳn là 5 giây.', 'c) Quãng đường ô tô đi được trong 3 giây đầu tiên kể từ lúc hãm phanh là 42 m.', 'd) Tổng quãng đường ô tô đi được từ lúc hãm phanh cho đến khi dừng hẳn là 60 m.', 'D,D,D,S', 'a) Đúng: a(t) = v''(t) = -4 m/s².
+b) Đúng: v(t) = 0 ⇔ 20 - 4t = 0 ⇔ t = 5 s.
+c) Đúng: S(3) = ∫(0→3)(20 - 4t)dt = [20t - 2t²](0→3) = 60 - 18 = 42 m.
+d) Sai: S(5) = ∫(0→5)(20 - 4t)dt = 100 - 50 = 50 m.', 1.00, 'Vận dụng', 14),
+(1, 'true_false', 'Trong không gian Oxyz, cho điểm A(1; 2; -1), đường thẳng d: (x - 2)/1 = (y + 1)/2 = z/(-2) và mặt phẳng (P): 2x - y + 2z - 3 = 0.', 'a) Một vectơ chỉ phương của đường thẳng d là u = (1; 2; -2).', 'b) Một vectơ pháp tuyến của mặt phẳng (P) là n = (2; -1; 2).', 'c) Đường thẳng d vuông góc với mặt phẳng (P).', 'd) Khoảng cách từ điểm A đến mặt phẳng (P) bằng 5/3.', 'D,D,S,D', 'a) Đúng.
+b) Đúng.
+c) Sai: u.n = 1.2 + 2(-1) + (-2)(2) = -4 ≠ 0 (không vuông góc).
+d) Đúng: d(A, (P)) = |2(1) - 2 + 2(-1) - 3| / √(4+1+4) = |-5|/3 = 5/3.', 1.00, 'Vận dụng', 15),
+(1, 'true_false', 'Một hộp chứa 6 quả cầu xanh và 4 quả cầu đỏ có kích thước và khối lượng giống nhau. Lấy ngẫu nhiên liên tiếp 2 quả cầu không hoàn lại từ hộp.', 'a) Số phần tử của không gian mẫu là 90.', 'b) Xác suất để quả cầu thứ nhất lấy ra màu xanh là 0.6.', 'c) Xác suất để quả cầu thứ hai lấy ra màu đỏ, biết rằng quả thứ nhất màu xanh, là 4/9.', 'd) Xác suất để cả 2 quả cầu lấy ra đều có màu đỏ bằng 1/6.', 'D,D,D,S', 'a) Đúng: 10 × 9 = 90.
+b) Đúng: 6/10 = 0.6.
+c) Đúng: Còn 9 quả trong đó 4 quả đỏ ⇒ P(Đ₂|X₁) = 4/9.
+d) Sai: P(Đ₁ ∩ Đ₂) = (4/10)×(3/9) = 12/90 = 2/15.', 1.00, 'Vận dụng cao', 16),
+(1, 'short_answer', 'Cho mẫu số liệu ghép nhóm về chiều cao của 40 cây giống: [10;20): 8, [20;30): 16, [30;40): 12, [40;50): 4. Tính số trung bình cộng (cm) của mẫu số liệu ghép nhóm trên.', NULL, NULL, NULL, NULL, '28', 'Giá trị đại diện các nhóm là 15, 25, 35, 45. Số TB = (15×8 + 25×16 + 35×12 + 45×4)/40 = 1120/40 = 28.', 0.50, 'Thông hiểu', 17),
+(1, 'short_answer', 'Cho hình chóp S.ABCD có đáy ABCD là hình chữ nhật với AB = 3, AD = 4, cạnh bên SA ⊥ (ABCD) và SA = 5. Tính thể tích khối chóp S.ABCD.', NULL, NULL, NULL, NULL, '20', 'Diện tích đáy B = 3 × 4 = 12. Thể tích V = (1/3)Bh = (1/3) × 12 × 5 = 20.', 0.50, 'Thông hiểu', 18),
+(1, 'short_answer', 'Một hộ gia đình sản xuất tối đa 100 sản phẩm mỗi tháng. Nếu bán x sản phẩm thì giá mỗi sản phẩm là p(x) = 50 - 0.2x (nghìn đồng) và tổng chi phí là C(x) = 10x + 200 (nghìn đồng). Hỏi hộ gia đình cần sản xuất bao nhiêu sản phẩm để lợi nhuận đạt lớn nhất?', NULL, NULL, NULL, NULL, '100', 'Lợi nhuận L(x) = -0.2x² + 40x - 200. Đạo hàm L''(x) = -0.4x + 40 = 0 ⇒ x = 100.', 0.50, 'Vận dụng', 19),
+(1, 'short_answer', 'Tính diện tích S của hình phẳng giới hạn bởi hai đường parabol y = x² - 2x và y = -x² + 4x.', NULL, NULL, NULL, NULL, '9', 'Hoành độ giao điểm: x = 0 hoặc x = 3. S = ∫(0→3)(6x - 2x²)dx = [3x² - (2/3)x³](0→3) = 27 - 18 = 9.', 0.50, 'Vận dụng', 20),
+(1, 'short_answer', 'Trong không gian Oxyz, một trạm thu phát sóng đặt tại I(1; 2; 3) có bán kính phủ sóng R = 5. Điểm M(4; 6; z) nằm trên mặt biên vùng phủ sóng (IM = 5) và có cao độ z > 0. Tính giá trị của z.', NULL, NULL, NULL, NULL, '3', 'IM² = (4-1)² + (6-2)² + (z-3)² = 25 ⇔ 9 + 16 + (z-3)² = 25 ⇔ z = 3.', 0.50, 'Vận dụng cao', 21),
+(1, 'short_answer', 'Một doanh nghiệp có 2 nhà máy A và B cùng sản xuất linh kiện. Nhà máy A sản xuất 60% sản lượng với tỉ lệ phế phẩm 2%; nhà máy B sản xuất 40% sản lượng với tỉ lệ phế phẩm 5%. Chọn ngẫu nhiên một linh kiện thấy đó là phế phẩm. Tính xác suất để linh kiện đó do nhà máy B sản xuất (làm tròn đến hàng phần trăm).', NULL, NULL, NULL, NULL, '0.63', 'Theo công thức Bayes: P(B|PP) = (0.4 × 0.05) / (0.6 × 0.02 + 0.4 × 0.05) = 0.02 / 0.032 = 0.625 ≈ 0.63.', 0.50, 'Vận dụng cao', 22),
+(2, 'mcq', 'Khảo sát cân nặng (kg) của 30 học sinh: [40;45): 4, [45;50): 8, [50;55): 12, [55;60): 6. Nhóm chứa trung vị của mẫu số liệu ghép nhóm trên là:', '[40; 45)', '[50; 55)', '[45; 50)', '[55; 60)', 'B', 'n/2 = 15. Tần số tích lũy đến hết nhóm [45;50) là 12 < 15; đến hết nhóm [50;55) là 24 ≥ 15 ⇒ nhóm chứa trung vị là [50; 55).', 0.25, 'Nhận biết', 1),
+(2, 'mcq', 'Họ nguyên hàm của hàm số f(x) = 1/x (với x > 0) là:', '-1/x² + C', '2√x + C', 'ln(x) + C', 'eˣ + C', 'C', 'Trên (0; +∞), ∫(1/x)dx = ln(x) + C.', 0.25, 'Nhận biết', 2),
+(2, 'mcq', 'Tập nghiệm của phương trình log₃(x) = 2 là:', '{9}', '{6}', '{8}', '{3}', 'A', 'log₃(x) = 2 ⇔ x = 3² = 9.', 0.25, 'Nhận biết', 3),
+(2, 'mcq', 'Cho cấp số cộng (uₙ) có u₁ = 2 và công sai d = 4. Giá trị của u₆ bằng:', '24', '20', '18', '22', 'D', 'u₆ = u₁ + 5d = 2 + 5×4 = 22.', 0.25, 'Nhận biết', 4),
+(2, 'mcq', 'Trong không gian Oxyz, mặt cầu (S): x² + y² + z² - 2x + 4y - 6z - 2 = 0 có tâm là:', 'I(1; 2; 3)', 'I(1; -2; 3)', 'I(-1; 2; -3)', 'I(2; -4; 6)', 'B', 'Chia hệ số x, y, z cho -2 ta được tâm I(1; -2; 3).', 0.25, 'Nhận biết', 5),
+(2, 'mcq', 'Cho hàm số y = (ax + b)/(cx + d) có tiệm cận đứng x = 1 và tiệm cận ngang y = -2. Giá trị của tỉ số a/c bằng:', '-2', '1', '-1', '2', 'A', 'Tiệm cận ngang y = a/c = -2.', 0.25, 'Nhận biết', 6),
+(2, 'mcq', 'Nếu ∫(0→4) f(x)dx = 10 thì ∫(0→4) [f(x) + 2]dx bằng:', '20', '18', '14', '12', 'B', '∫(0→4)f(x)dx + ∫(0→4)2dx = 10 + 8 = 18.', 0.25, 'Nhận biết', 7),
+(2, 'mcq', 'Cho hai biến cố A và B với P(A) > 0. Công thức nhân xác suất đúng là:', 'P(A ∩ B) = P(A) + P(B | A)', 'P(A ∩ B) = P(B) . P(B | A)', 'P(A ∩ B) = P(A) . P(B | A)', 'P(A ∩ B) = P(A) / P(B | A)', 'C', 'Theo quy tắc nhân xác suất: P(A ∩ B) = P(A).P(B | A).', 0.25, 'Nhận biết', 8),
+(2, 'mcq', 'Giá trị nhỏ nhất của hàm số y = x⁴ - 2x² + 5 trên đoạn [-1; 2] bằng:', '3', '5', '4', '13', 'C', 'y'' = 4x³ - 4x = 0 ⇒ x = 0; ±1. y(±1) = 4, y(0) = 5, y(2) = 13 ⇒ GTNN bằng 4.', 0.25, 'Thông hiểu', 9),
+(2, 'mcq', 'Cho log₂(3) = a. Giá trị của log₂(24) theo a bằng:', '3 + a', '3a', '2 + a', '4a', 'A', 'log₂(24) = log₂(8 × 3) = 3 + a.', 0.25, 'Thông hiểu', 10),
+(2, 'mcq', 'Trong không gian Oxyz, đường thẳng d đi qua A(2; 0; -1) và B(4; -2; 3) có một vectơ chỉ phương là:', 'u = (1; 1; 2)', 'u = (1; -1; 2)', 'u = (6; -2; 2)', 'u = (2; 2; 4)', 'B', 'AB = (2; -2; 4) = 2(1; -1; 2) ⇒ chọn u = (1; -1; 2).', 0.25, 'Thông hiểu', 11),
+(2, 'mcq', 'Cho hình chóp S.ABCD có đáy là hình thoi cạnh a, góc BAD = 60°, SA ⊥ (ABCD) và SA = a√3. Thể tích khối chóp S.ABCD bằng:', 'a³/4', 'a³√3/2', 'a³/2', 'a³', 'C', 'S_ABCD = a².sin60° = a²√3/2 ⇒ V = (1/3).(a²√3/2).(a√3) = a³/2.', 0.25, 'Thông hiểu', 12),
+(2, 'true_false', 'Cho hàm số phân thức y = f(x) = (x² - 2x + 2) / (x - 1). Xét tính đúng sai của các khẳng định sau:', 'a) Tập xác định của hàm số là D = ℝ \ {1}.', 'b) Đồ thị hàm số có tiệm cận đứng là đường thẳng x = 1.', 'c) Tiệm cận xiên của đồ thị hàm số là đường thẳng y = x - 1.', 'd) Hàm số đạt cực đại tại x = 2.', 'D,D,D,S', 'a) Đúng: ĐK x - 1 ≠ 0.
+b) Đúng.
+c) Đúng: f(x) = x - 1 + 1/(x - 1) nên tiệm cận xiên y = x - 1.
+d) Sai: f''(x) = 1 - 1/(x - 1)² = 0 ⇔ x = 0 (CĐ) hoặc x = 2 (CT).', 1.00, 'Thông hiểu', 13),
+(2, 'true_false', 'Một chất điểm chuyển động thẳng với phương trình vận tốc v(t) = t² - 4t + 3 (m/s), trong đó t ≥ 0 tính bằng giây.', 'a) Vận tốc ban đầu của chất điểm tại t = 0 là 3 m/s.', 'b) Gia tốc của chất điểm tại thời điểm t = 3 s là 2 m/s².', 'c) Trong khoảng thời gian từ t = 1 s đến t = 3 s, chất điểm chuyển động theo chiều dương.', 'd) Quãng đường chất điểm đi được trong 3 giây đầu tiên là 8/3 m.', 'D,D,S,D', 'a) Đúng: v(0) = 3 m/s.
+b) Đúng: a(t) = v''(t) = 2t - 4 ⇒ a(3) = 2 m/s².
+c) Sai: Với t ∈ (1; 3) thì v(t) = (t-1)(t-3) < 0 (chuyển động theo chiều âm).
+d) Đúng: S = ∫(0→1)(t²-4t+3)dt + ∫(1→3)|t²-4t+3|dt = 4/3 + 4/3 = 8/3 m.', 1.00, 'Vận dụng', 14),
+(2, 'true_false', 'Trong không gian Oxyz, cho hai điểm A(1; 0; 2), B(3; 2; 0) và mặt phẳng (P): x + y - z + 3 = 0.', 'a) Trung điểm I của đoạn thẳng AB có tọa độ là (2; 1; 1).', 'b) Vectơ pháp tuyến của mặt phẳng (P) là n = (1; 1; -1).', 'c) Đường thẳng AB song song với mặt phẳng (P).', 'd) Mặt phẳng trung trực của đoạn thẳng AB có phương trình là x + y - z - 2 = 0.', 'D,D,S,D', 'a) Đúng.
+b) Đúng.
+c) Sai: AB = (2; 2; -2) = 2n ⇒ đường thẳng AB vuông góc với (P).
+d) Đúng: đi qua I(2; 1; 1) với VTPT n = (1; 1; -1) ⇒ 1(x-2)+1(y-1)-1(z-1)=0 ⇔ x+y-z-2=0.', 1.00, 'Vận dụng', 15),
+(2, 'true_false', 'Một lớp học có 60% học sinh tham gia CLB Thể thao và 40% không tham gia. Tỉ lệ đạt giải cấp trường trong nhóm tham gia CLB là 25%, trong nhóm không tham gia là 10%. Chọn ngẫu nhiên một học sinh.', 'a) Xác suất chọn được học sinh tham gia CLB Thể thao là 0.6.', 'b) Xác suất học sinh đạt giải, biết rằng học sinh đó không tham gia CLB, là 0.1.', 'c) Xác suất học sinh được chọn đạt giải cấp trường là 0.19.', 'd) Biết rằng học sinh được chọn đạt giải cấp trường, xác suất học sinh đó tham gia CLB Thể thao bằng 15/19.', 'D,D,D,D', 'a) Đúng.
+b) Đúng.
+c) Đúng: P(G) = 0.6×0.25 + 0.4×0.10 = 0.19.
+d) Đúng: Theo Bayes, P(CLB | G) = (0.6×0.25) / 0.19 = 0.15 / 0.19 = 15/19.', 1.00, 'Vận dụng cao', 16),
+(2, 'short_answer', 'Biết F(x) là một nguyên hàm của hàm số f(x) = 3x² - 2x thỏa mãn F(1) = 3. Tính giá trị của F(2).', NULL, NULL, NULL, NULL, '7', 'F(x) = x³ - x² + C. F(1) = C = 3 ⇒ F(2) = 8 - 4 + 3 = 7.', 0.50, 'Thông hiểu', 17),
+(2, 'short_answer', 'Cho mẫu số liệu ghép nhóm về quãng đường chạy bộ (km/tuần) của 40 người: [0;10): 10, [10;20): 10, [20;30): 10, [30;40): 10. Tính khoảng tứ phân vị Δ_Q của mẫu số liệu ghép nhóm trên.', NULL, NULL, NULL, NULL, '20', 'Q₁ = 10, Q₃ = 30 ⇒ Δ_Q = 30 - 10 = 20.', 0.50, 'Thông hiểu', 18),
+(2, 'short_answer', 'Cho hình chóp S.ABC có SA ⊥ (ABC), đáy ABC là tam giác vuông cân tại B, AB = BC = 6, SA = 6. Tính khoảng cách từ điểm A đến mặt phẳng (SBC) (làm tròn đến hàng phần trăm).', NULL, NULL, NULL, NULL, '4.24', 'BC ⊥ (SAB). Kẻ AH ⊥ SB ⇒ AH ⊥ (SBC). AH = (6×6)/√(36+36) = 3√2 ≈ 4.24.', 0.50, 'Vận dụng', 19),
+(2, 'short_answer', 'Một nhà sản xuất bán x chiếc xe đạp điện mỗi tháng với giá p(x) = 20 - 0.05x (triệu đồng) và tổng chi phí C(x) = 8x + 120 (triệu đồng). Hỏi lợi nhuận lớn nhất trong một tháng đạt bao nhiêu triệu đồng?', NULL, NULL, NULL, NULL, '600', 'L(x) = -0.05x² + 12x - 120 đạt cực đại tại x = 120 ⇒ L_max = 600 triệu đồng.', 0.50, 'Vận dụng', 20),
+(2, 'short_answer', 'Trong không gian Oxyz, cho điểm M(2; 1; -1) và mặt phẳng (P): 2x - y + 2z + 5 = 0. Tính khoảng cách từ M đến mặt phẳng (P).', NULL, NULL, NULL, NULL, '2', 'd(M, (P)) = |2(2) - 1 + 2(-1) + 5| / √(4 + 1 + 4) = |6| / 3 = 2.', 0.50, 'Vận dụng', 21),
+(2, 'short_answer', 'Tính thể tích khối tròn xoay tạo thành khi quay hình phẳng giới hạn bởi các đường y = √(2x), y = 0, x = 0, x = 3 quanh trục Ox (lấy π ≈ 3.14, làm tròn kết quả đến hàng phần trăm).', NULL, NULL, NULL, NULL, '28.26', 'V = π∫(0→3) 2x dx = π[x²](0→3) = 9π ≈ 9 × 3.14 = 28.26.', 0.50, 'Vận dụng cao', 22),
+(3, 'mcq', '[Advertisement: SmartStudy App] "SmartStudy is an _______ learning platform designed for Grade 12 students."', 'innovate', 'innovatively', 'innovation', 'innovative', 'D', 'Tính từ "innovative" bổ nghĩa cho danh từ "learning platform".', 0.25, 'Nhận biết', 1),
+(3, 'mcq', '[Advertisement: SmartStudy App] "Students can focus _______ their weakest topics before the national exam."', 'for', 'on', 'with', 'at', 'B', 'Cụm từ cố định: "focus on" = tập trung vào.', 0.25, 'Nhận biết', 2),
+(3, 'mcq', '[Advertisement: SmartStudy App] "Download the app today to _______ full advantage of our free 30-day trial!"', 'do', 'make', 'take', 'give', 'C', 'Collocation: "take advantage of" = tận dụng.', 0.25, 'Nhận biết', 3),
+(3, 'mcq', '[Advertisement: SmartStudy App] "Don''t hesitate _______ our support team if you need technical assistance."', 'contacted', 'contact', 'to contact', 'contacting', 'C', 'Cấu trúc: "hesitate + to V".', 0.25, 'Nhận biết', 4),
+(3, 'mcq', '[Leaflet: Green Campus Week] "Remember to bring your reusable bottle _______ single-use plastic cups."', 'in case of', 'instead of', 'with a view to', 'on account of', 'B', '"instead of" = thay vì.', 0.25, 'Nhận biết', 5),
+(3, 'mcq', '[Leaflet: Green Campus Week] "A large _______ of volunteers is needed to plant 200 trees around the school."', 'deal', 'amount', 'number', 'quantity', 'C', '"A large number of + N(đếm được số nhiều)".', 0.25, 'Nhận biết', 6),
+(3, 'mcq', '[Leaflet: Green Campus Week] "Small daily actions can _______ a big difference to our local environment."', 'make', 'take', 'create', 'do', 'A', 'Collocation cố định: "make a difference".', 0.25, 'Nhận biết', 7),
+(3, 'mcq', 'Arrange the dialogue:
+a. Mai: I''m preparing for the university entrance exam, so I''m a bit stressed.
+b. Nam: Hi Mai! You look tired today. What''s wrong?
+c. Nam: Don''t worry too much. Make a clear study schedule and take short breaks!', 'c - a - b', 'a - b - c', 'b - a - c', 'b - c - a', 'C', 'Mở đầu hỏi thăm (b) → trả lời (a) → khuyên nhủ (c).', 0.25, 'Nhận biết', 8),
+(3, 'mcq', 'Choose the word whose underlined part differs in pronunciation: [ea]sy, t[ea]cher, h[ea]lthy, sp[ea]k', 'teacher', 'speak', 'easy', 'healthy', 'D', '"healthy" đọc là /e/, các từ còn lại đọc là /iː/.', 0.25, 'Nhận biết', 9),
+(3, 'mcq', 'Choose the word whose underlined part differs in pronunciation: book[s], lamp[s], bag[s], hat[s]', 'lamps', 'bags', 'hats', 'books', 'B', '"bags" kết thúc bằng âm hữu thanh /ɡ/ nên -s đọc là /z/, các từ còn lại đọc /s/.', 0.25, 'Nhận biết', 10),
+(3, 'mcq', 'Choose the word that differs in primary stress: nation, beauty, student, agree', 'agree', 'student', 'nation', 'beauty', 'A', '"agree" nhấn âm 2, các từ còn lại nhấn âm 1.', 0.25, 'Nhận biết', 11),
+(3, 'mcq', 'She _______ her grandparents in the countryside every summer.', 'has visited', 'visited', 'is visiting', 'visits', 'D', 'Thói quen lặp lại ("every summer") chia thì hiện tại đơn.', 0.25, 'Nhận biết', 12),
+(3, 'mcq', 'The novel _______ by a famous Vietnamese author in 2020.', 'was written', 'is writing', 'has written', 'wrote', 'A', 'Câu bị động ở thì quá khứ đơn ("in 2020").', 0.25, 'Nhận biết', 13),
+(3, 'mcq', 'Lan: "Congratulations on winning the first prize!" - Hoa: "_______"', 'Thank you so much!', 'You''re welcome.', 'Never mind.', 'I''m sorry to hear that.', 'A', 'Đáp lại lời chúc mừng dùng "Thank you so much!".', 0.25, 'Nhận biết', 14),
+(3, 'mcq', 'My brother is very fond _______ playing chess with my grandfather.', 'on', 'with', 'of', 'at', 'C', 'Cấu trúc: "be fond of + V-ing" (thích làm gì).', 0.25, 'Nhận biết', 15),
+(3, 'mcq', 'That is the university _______ my sister studied architecture.', 'who', 'which', 'whom', 'where', 'D', 'Trạng từ quan hệ "where" thay thế cho danh từ chỉ nơi chốn.', 0.25, 'Nhận biết', 16),
+(3, 'mcq', '[Advertisement: SmartStudy App] "It offers _______ to help you master every subject faster."', 'video interactive lessons', 'interactive video lessons', 'interactive lessons video', 'lessons interactive video', 'B', 'Trật tự cụm danh từ chuẩn: tính từ + danh từ ghép.', 0.25, 'Thông hiểu', 17),
+(3, 'mcq', '[Advertisement: SmartStudy App] "All mock tests, _______ by experienced teachers, strictly follow the national format."', 'designing', 'designed', 'which designed', 'to design', 'B', 'Rút gọn mệnh đề quan hệ bị động dùng quá khứ phân từ "designed".', 0.25, 'Thông hiểu', 18),
+(3, 'mcq', '[Leaflet: Green Campus Week] "Plastic waste ends up in landfills, threatening _______ wildlife."', 'another', 'other', 'others', 'the others', 'B', '"other + danh từ không đếm được/số nhiều".', 0.25, 'Thông hiểu', 19),
+(3, 'mcq', '[Leaflet: Green Campus Week] "Students are encouraged to _______ old notebooks at the school recycling booth."', 'take over', 'put out', 'drop off', 'break down', 'C', '"drop off" = mang tới gửi/để lại.', 0.25, 'Thông hiểu', 20),
+(3, 'mcq', '[Leaflet: Green Campus Week] "We will also organize workshops on waste sorting and energy _______."', 'conversation', 'consumption', 'conservation', 'construction', 'C', '"energy conservation" = bảo tồn/tiết kiệm năng lượng.', 0.25, 'Thông hiểu', 21),
+(3, 'mcq', 'Arrange the dialogue:
+a. Lan: What time does it start?
+b. Minh: Are you free this Saturday morning? Our club is hosting a book fair.
+c. Lan: Yes, I am. Sounds interesting!
+d. Minh: It starts at 8 a.m. in the library yard.
+e. Lan: Count me in!', 'b - c - d - a - e', 'c - b - a - e - d', 'b - c - a - d - e', 'b - a - c - d - e', 'C', 'Trình tự tự nhiên: mời (b) → đáp (c) → hỏi giờ (a) → trả lời giờ (d) → đồng ý (e).', 0.25, 'Thông hiểu', 22),
+(3, 'mcq', 'Arrange the letter:
+a. Let me know if you can come so I can book the tickets early.
+b. I''m writing to invite you to a science exhibition next Sunday.
+c. It features amazing robotics demonstrations from university students.
+d. Looking forward to hearing from you soon.', 'a - b - c - d', 'b - a - c - d', 'c - b - a - d', 'b - c - a - d', 'D', 'Mục đích thư (b) → chi tiết sự kiện (c) → lời nhắn (a) → kết thư (d).', 0.25, 'Thông hiểu', 23),
+(3, 'mcq', '[Context Cloze: AI in Education] "One major application is the AI tutor, _______."', 'that adapting lessons to each student''s pace', 'which can adapt lessons to each student''s learning pace', 'whom helps students learn at their own pace', 'whose lessons adapted automatically', 'B', 'Mệnh đề quan hệ không xác định sau dấu phẩy dùng "which".', 0.25, 'Thông hiểu', 24),
+(3, 'mcq', '[Context Cloze: AI in Education] "_______, an AI system can immediately detect whether a student misunderstood a formula."', 'Analyze thousands of practice responses in seconds', 'By analyzing thousands of practice responses in seconds', 'Although analyzing thousands of practice responses', 'Having analyzed by thousands of responses', 'B', 'Cụm chỉ phương tiện "By + V-ing".', 0.25, 'Thông hiểu', 25),
+(3, 'mcq', '[Passage 1: Ocean Protection] "Oceans cover over 70% of Earth''s surface and produce at least 50% of the planet''s oxygen. Yet, rising sea temperatures and overfishing threaten marine ecosystems." How much oxygen do oceans produce?', 'Exactly 70% of Earth''s oxygen', 'Nearly 100% of all oxygen', 'At least half of Earth''s oxygen', 'Less than 20% of Earth''s oxygen', 'C', 'Bài nêu rõ: "produce at least 50% of the planet''s oxygen".', 0.25, 'Thông hiểu', 26),
+(3, 'mcq', '[Passage 1] The word "threaten" in Passage 1 is CLOSEST in meaning to:', 'protect', 'endanger', 'celebrate', 'expand', 'B', '"threaten" = "endanger" (đe dọa, gây nguy hiểm).', 0.25, 'Thông hiểu', 27),
+(3, 'mcq', '[Passage 1] "Community-led coral restoration and strict fishing quotas have helped fish populations recover." The word "recover" is OPPOSITE in meaning to:', 'heal', 'survive', 'decline', 'improve', 'C', '"recover" (phục hồi) trái nghĩa với "decline" (suy giảm).', 0.25, 'Thông hiểu', 28),
+(3, 'mcq', 'Arrange the paragraph:
+a. Furthermore, teaching a concept to a friend helps spot gaps in your understanding.
+b. Active recall is widely considered more effective than simply re-reading notes.
+c. By retrieving information without looking at the page, you strengthen memory pathways.
+d. Therefore, students should combine practice quizzes with peer discussions.', 'c - b - a - d', 'b - a - c - d', 'b - c - a - d', 'a - b - c - d', 'C', 'Câu chủ đề (b) → cơ chế (c) → bổ sung (a) → kết luận (d).', 0.25, 'Vận dụng', 29),
+(3, 'mcq', 'Arrange the paragraph:
+a. As a result, residents in greener neighborhoods report lower stress levels.
+b. Rapid urbanization has reduced the number of parks in many modern cities.
+c. Urban parks cool down temperatures and provide safe places for outdoor exercise.
+d. Recognizing these benefits, planners now prioritize rooftop gardens.', 'd - b - c - a', 'b - c - a - d', 'b - a - c - d', 'c - b - d - a', 'B', 'Thực trạng (b) → lợi ích (c) → kết quả (a) → giải pháp (d).', 0.25, 'Vận dụng', 30),
+(3, 'mcq', '[Context Cloze: AI in Education] "Educators emphasize that empathy and moral guidance _______."', 'remaining as unique teacher abilities', 'is remaining a skill for human mentors', 'remains skills only offered by human mentors', 'remain skills that only human mentors can genuinely offer', 'D', 'Chủ ngữ số nhiều "empathy and moral guidance" đi với "remain".', 0.25, 'Vận dụng', 31),
+(3, 'mcq', '[Context Cloze: AI in Education] "In addition, _______ if students rely too heavily on AI to write essays."', 'the decline of thinking was unavoidable', 'critical thinking abilities had declined', 'critically thinking ability will declined', 'critical thinking abilities might gradually decline', 'D', 'Câu điều kiện loại 1 diễn tả hệ quả có thể xảy ra: "might gradually decline".', 0.25, 'Vận dụng', 32),
+(3, 'mcq', '[Passage 1] What is the main idea of Passage 1 (Ocean Protection)?', 'Banning all coastal tourism permanently', 'Comparing forest oxygen with desert air', 'Describing how deep-sea submarines work', 'Promoting the sustainable blue economy to protect vital ocean ecosystems', 'D', 'Toàn bài nói về bảo vệ đại dương qua mô hình kinh tế biển bền vững.', 0.25, 'Vận dụng', 33),
+(3, 'mcq', '[Passage 2: Remote Work] "High-speed internet and cloud tools have reshaped workplaces. However, without clear boundaries, employees may experience burnout. Forward-thinking firms set ''no-email'' evening hours." What drawback is mentioned?', 'Lack of internet access in city centers', 'Too many in-person meetings every morning', 'Difficulty separating work hours from personal time', 'Higher daily commuting expenses', 'C', 'Bài nêu việc thiếu ranh giới giữa công việc và cuộc sống gây kiệt sức.', 0.25, 'Vận dụng', 34),
+(3, 'mcq', '[Passage 2] How do progressive companies address remote-work challenges?', 'By closing all physical offices permanently', 'By banning cloud collaboration tools', 'By restricting evening emails and organizing in-person retreats', 'By forcing staff to work 12 hours daily', 'C', 'Thông tin: "setting ''no-email'' evening hours and scheduling regular in-person team retreats".', 0.25, 'Vận dụng', 35),
+(3, 'mcq', '[Passage 2] The word "burnout" refers to:', 'physical or mental exhaustion caused by overwork', 'high-speed fiber optic internet installation', 'an annual outdoor team-building celebration', 'a sudden promotion at a technology company', 'A', '"burnout" = sự kiệt sức vì làm việc quá tải.', 0.25, 'Vận dụng', 36),
+(3, 'mcq', '[Passage 2] "(I) Workers split their week between home and shared offices. (II) Suburban cafes have boomed. (III) However, junior staff miss spontaneous mentoring." Where does "This shift has significantly reduced downtown traffic." best fit?', 'After (II)', 'Between (I) and (II)', 'Before (I)', 'After (III)', 'B', 'Câu nói về kết quả giảm ùn tắc trung tâm nối liền sau (I) và trước (II).', 0.25, 'Vận dụng cao', 37),
+(3, 'mcq', '[Passage 2] Which sentence best paraphrases: "Without clear boundaries between work and personal life, employees may experience burnout."?', 'Personal life prevents employees from learning cloud tools.', 'Clear boundaries guarantee workers never need vacations.', 'Commuting to crowded offices is the only cause of worker burnout.', 'Failing to separate professional duties from private time can lead to worker exhaustion.', 'D', 'Diễn đạt lại chính xác nghĩa gốc câu trong bài đọc.', 0.25, 'Vận dụng cao', 38),
+(3, 'mcq', 'Not until the final bell rang _______ leaving the examination room.', 'did the candidates start', 'started the candidates', 'had the candidates start', 'the candidates started', 'A', 'Đảo ngữ "Not until + mệnh đề, trợ động từ + S + V_inf".', 0.25, 'Vận dụng cao', 39),
+(3, 'mcq', 'It is essential that every applicant _______ the online form before the deadline.', 'submits', 'submitted', 'submit', 'is submitting', 'C', 'Thức giả định: "It is essential that + S + V(nguyên mẫu không to)".', 0.25, 'Vận dụng cao', 40),
+(4, 'mcq', 'Pronunciation (underlined vowel): l[a]ke, g[a]me, m[a]de, f[a]ct', 'lake', 'fact', 'game', 'made', 'B', '"fact" phát âm /æ/, các từ còn lại phát âm /eɪ/.', 0.25, 'Nhận biết', 1),
+(4, 'mcq', 'Pronunciation (-ed ending): want[ed], need[ed], visit[ed], lik[ed]', 'liked', 'wanted', 'needed', 'visited', 'A', '"liked" có âm cuối /k/ nên -ed đọc là /t/, các từ còn lại đọc /ɪd/.', 0.25, 'Nhận biết', 2),
+(4, 'mcq', 'Primary stress: hospital, library, computer, family', 'hospital', 'family', 'library', 'computer', 'D', '"computer" nhấn âm 2, các từ còn lại nhấn âm 1.', 0.25, 'Nhận biết', 3),
+(4, 'mcq', 'Primary stress: arrive, open, enjoy, begin', 'enjoy', 'begin', 'arrive', 'open', 'D', '"open" nhấn âm 1, các động từ 2 âm tiết còn lại nhấn âm 2.', 0.25, 'Nhận biết', 4),
+(4, 'mcq', 'Look! The children _______ football happily in the schoolyard.', 'are playing', 'play', 'have played', 'played', 'A', 'Có "Look!" chỉ hành động đang diễn ra tại thời điểm nói ⇒ hiện tại tiếp diễn.', 0.25, 'Nhận biết', 5),
+(4, 'mcq', 'He has lived in Hanoi _______ more than ten years.', 'for', 'since', 'ago', 'during', 'A', '"for + khoảng thời gian" (more than ten years).', 0.25, 'Nhận biết', 6),
+(4, 'mcq', 'Your sister can speak Japanese fluently, _______?', 'can she', 'isn''t she', 'doesn''t she', 'can''t she', 'D', 'Câu hỏi đuôi với động từ khuyết thiếu "can" khẳng định ⇒ "can''t she".', 0.25, 'Nhận biết', 7),
+(4, 'mcq', 'This bridge _______ in 2015 to connect the two districts.', 'is built', 'has built', 'built', 'was built', 'D', 'Câu bị động quá khứ đơn ("in 2015").', 0.25, 'Nhận biết', 8),
+(4, 'mcq', 'She asked me _______ I liked watching science fiction movies.', 'which', 'if', 'that', 'what', 'B', 'Câu tường thuật dạng Yes/No question dùng "if" hoặc "whether".', 0.25, 'Nhận biết', 9),
+(4, 'mcq', 'Tom decided _______ a part-time job to gain practical experience.', 'take', 'to take', 'taking', 'taken', 'B', 'Cấu trúc: "decide + to V".', 0.25, 'Nhận biết', 10),
+(4, 'mcq', 'Nam: "How about going for a bike ride this afternoon?" - Ba: "_______"', 'That''s a great idea!', 'No, I don''t.', 'Yes, I do.', 'Never mind.', 'A', 'Đáp lại lời gợi ý "How about...?" bằng "That''s a great idea!".', 0.25, 'Nhận biết', 11),
+(4, 'mcq', 'I need to buy _______ new dictionary for my English class.', 'no article', 'the', 'an', 'a', 'D', '"new dictionary" đếm được số ít, nhắc lần đầu và bắt đầu bằng phụ âm ⇒ dùng "a".', 0.25, 'Nhận biết', 12),
+(4, 'mcq', 'Mount Everest is the _______ mountain in the world.', 'higher', 'most high', 'highest', 'high', 'C', 'So sánh nhất với tính từ ngắn "high" ⇒ "the highest".', 0.25, 'Nhận biết', 13),
+(4, 'mcq', 'We couldn''t go camping _______ the terrible storm.', 'because', 'because of', 'despite', 'although', 'B', '"because of + cụm danh từ" chỉ nguyên nhân.', 0.25, 'Nhận biết', 14),
+(4, 'mcq', 'You should _______ up the meaning of new words in a dictionary.', 'look', 'get', 'make', 'take', 'A', 'Phrasal verb: "look up" = tra cứu (từ điển, thông tin).', 0.25, 'Nhận biết', 15),
+(4, 'mcq', 'She plays the piano very _______ and won many awards.', 'good', 'well', 'better', 'best', 'B', 'Trạng từ "well" bổ nghĩa cho động từ thường "plays".', 0.25, 'Nhận biết', 16);
+
+INSERT INTO questions (exam_id, question_type, question_text, option_a, option_b, option_c, option_d, correct_option, explanation, points_value, difficulty, sort_order) VALUES
+(4, 'mcq', 'CLOSEST in meaning: Parents should ENCOURAGE their children to read books every day.', 'prevent', 'motivate', 'criticize', 'ignore', 'B', '"encourage" (khuyến khích) đồng nghĩa với "motivate" (tạo động lực).', 0.25, 'Thông hiểu', 17),
+(4, 'mcq', 'CLOSEST in meaning: The museum displays ANCIENT artifacts from the Bronze Age.', 'common', 'expensive', 'modern', 'very old', 'D', '"ancient" (cổ đại) = "very old".', 0.25, 'Thông hiểu', 18),
+(4, 'mcq', 'OPPOSITE in meaning: It is GENEROUS of him to donate half of his prize money.', 'selfish', 'helpful', 'kind', 'wealthy', 'A', '"generous" (hào phóng) trái nghĩa với "selfish" (ích kỷ).', 0.25, 'Thông hiểu', 19),
+(4, 'mcq', 'OPPOSITE in meaning: The instructions were so VAGUE that nobody knew what to do.', 'clear', 'unclear', 'short', 'confusing', 'A', '"vague" (mơ hồ) trái nghĩa với "clear" (rõ ràng).', 0.25, 'Thông hiểu', 20),
+(4, 'mcq', 'Find the mistake: The number of students [attending] the workshop [have] increased [dramatically] [this year].', 'attending', 'dramatically', 'this year', 'have', 'D', 'Chủ ngữ "The number of + N(số nhiều)" luôn đi với động từ số ít ⇒ "have" sửa thành "has".', 0.25, 'Thông hiểu', 21),
+(4, 'mcq', 'Find the mistake: My sister [is] [interested] in [collect] postcards from [different] countries.', 'different', 'collect', 'is', 'interested', 'B', 'Sau giới từ "in" dùng V-ing ⇒ "collect" sửa thành "collecting".', 0.25, 'Thông hiểu', 22),
+(4, 'mcq', 'If she _______ earlier, she wouldn''t have missed the train.', 'left', 'leaves', 'had left', 'would leave', 'C', 'Câu điều kiện loại 3: If + S + had + V3/ed, S + would have + V3/ed.', 0.25, 'Thông hiểu', 23),
+(4, 'mcq', 'The more books you read, _______ knowledge you will gain.', 'the more', 'most', 'the most', 'more', 'A', 'So sánh kép với danh từ: "The more + N + S + V, the more + N + S + V".', 0.25, 'Thông hiểu', 24),
+(4, 'mcq', '_______ in 1998, the library serves thousands of students every month.', 'Built', 'To build', 'Having built', 'Building', 'A', 'Rút gọn mệnh đề trạng ngữ bị động dùng quá khứ phân từ "Built".', 0.25, 'Thông hiểu', 25),
+(4, 'mcq', 'By the time we arrived at the cinema, the movie _______ for fifteen minutes.', 'had started', 'starts', 'started', 'has started', 'A', 'Hành động xảy ra trước một mốc quá khứ dùng thì quá khứ hoàn thành "had started".', 0.25, 'Thông hiểu', 26),
+(4, 'mcq', 'When I was a child, my grandfather _______ tell me folk tales before bedtime.', 'was used to', 'got used to', 'is used to', 'used to', 'D', '"used to + V_inf" diễn tả thói quen trong quá khứ nay không còn.', 0.25, 'Thông hiểu', 27),
+(4, 'mcq', 'Many volunteers helped clean _______ the beach after the music festival.', 'off', 'out', 'away', 'up', 'D', 'Phrasal verb: "clean up" = dọn dẹp sạch sẽ.', 0.25, 'Thông hiểu', 28),
+(4, 'mcq', 'Rewrite: "Don''t forget to lock the front door," Mom said to me.', 'Mom apologized for locking the front door.', 'Mom reminded me to lock the front door.', 'Mom denied locking the front door.', 'Mom forbade me to lock the front door.', 'B', '"Don''t forget to V" tường thuật bằng "S + reminded + O + to V".', 0.25, 'Vận dụng', 29),
+(4, 'mcq', 'Rewrite: She started learning French five years ago.', 'She stopped learning French five years ago.', 'She hasn''t learned French for five years.', 'She has been learning French for five years.', 'It was five years when she learned French.', 'C', 'Chuyển từ quá khứ đơn ("started ... ago") sang hiện tại hoàn thành ("has been learning ... for").', 0.25, 'Vận dụng', 30),
+(4, 'mcq', 'Rewrite: Perhaps he missed the morning bus.', 'He can''t have missed the morning bus.', 'He shouldn''t have missed the morning bus.', 'He might have missed the morning bus.', 'He mustn''t have missed the morning bus.', 'C', 'Dự đoán có khả năng xảy ra trong quá khứ ("Perhaps") dùng "might have + V3/ed".', 0.25, 'Vận dụng', 31),
+(4, 'mcq', 'Reading: "Urban farming—growing vegetables on rooftops and balconies—reduces food transport emissions and cools city buildings. Though space is limited, vertical racks allow families to harvest fresh greens year-round." What is an advantage of urban farming?', 'It increases city air conditioning energy bills.', 'It lowers emissions from transporting food and cools buildings.', 'It requires thousands of hectares of rural farmland.', 'It prevents families from eating fresh vegetables.', 'B', 'Bài nêu rõ: "reduces food transport emissions and cools city buildings".', 0.25, 'Vận dụng', 32),
+(4, 'mcq', 'Based on the Urban Farming text, how do city residents overcome limited space?', 'By moving all factories into rural forests', 'By using vertical racks on rooftops and balconies', 'By stopping vegetable consumption in winter', 'By building underground parking garages', 'B', 'Thông tin: "vertical racks allow families to harvest fresh greens year-round".', 0.25, 'Vận dụng', 33),
+(4, 'mcq', 'Combine: He speaks English very fluently. However, he has never lived abroad.', 'Although he has never lived abroad, he speaks English very fluently.', 'Because he has never lived abroad, he speaks English fluently.', 'Unless he lived abroad, he would speak fluently.', 'Despite he has never lived abroad, he speaks fluently.', 'A', 'Hai mệnh đề tương phản nối bằng liên từ "Although".', 0.25, 'Vận dụng', 34),
+(4, 'mcq', 'The manager decided to _______ the meeting until next Monday due to bad weather.', 'get over', 'put off', 'bring up', 'take after', 'B', '"put off" = trì hoãn.', 0.25, 'Vận dụng', 35),
+(4, 'mcq', 'Making a detailed study plan is the best way to _______ your exam anxiety.', 'trigger', 'aggravate', 'multiply', 'alleviate', 'D', '"alleviate anxiety" = làm dịu/giảm bớt sự lo âu.', 0.25, 'Vận dụng', 36),
+(4, 'mcq', 'Had it not been for the lifeguard''s quick reaction, the child _______ drowned.', 'will have', 'had', 'would have', 'would', 'C', 'Đảo ngữ câu điều kiện loại 3: "Had it not been for + N, S + would have + V3/ed".', 0.25, 'Vận dụng cao', 37),
+(4, 'mcq', 'Every student is expected to _______ their weight when working on the group science project.', 'carry', 'push', 'pull', 'lift', 'C', 'Thành ngữ (Idiom): "pull one''s weight" = làm tròn phần việc/trách nhiệm của mình trong nhóm.', 0.25, 'Vận dụng cao', 38),
+(4, 'mcq', 'Hardly _______ at the airport when the boarding announcement was made.', 'have we arrived', 'had we arrived', 'did we arrive', 'we had arrived', 'B', 'Đảo ngữ với "Hardly + had + S + V3/ed + when + S + V2/ed".', 0.25, 'Vận dụng cao', 39),
+(4, 'mcq', 'The new policy aims to bridge the _______ between urban and rural digital education.', 'gap', 'road', 'wall', 'line', 'A', 'Collocation chuẩn: "bridge the gap" = thu hẹp khoảng cách.', 0.25, 'Vận dụng cao', 40),
+(5, 'mcq', 'Quá trình chuyển từ thể lỏng sang thể rắn của một chất được gọi là:', 'Sự nóng chảy', 'Sự bay hơi', 'Sự ngưng tụ', 'Sự đông đặc', 'D', 'Chuyển từ thể lỏng sang thể rắn là sự đông đặc.', 0.25, 'Nhận biết', 1),
+(5, 'mcq', 'Theo định luật I của nhiệt động lực học ΔU = A + Q, nếu hệ nhận nhiệt lượng Q > 0 và thực hiện công A < 0 thì độ biến thiên nội năng của hệ là:', 'ΔU = 0', 'ΔU = Q + |A|', 'ΔU = |A| - Q', 'ΔU = Q - |A|', 'D', 'Hệ thực hiện công nên A < 0, do đó ΔU = Q + A = Q - |A|.', 0.25, 'Nhận biết', 2),
+(5, 'mcq', 'Đơn vị đo nhiệt độ nhiệt động lực học trong hệ SI là:', 'Kelvin (K)', 'Joule (J)', 'Độ Celsius (°C)', 'Độ Fahrenheit (°F)', 'A', 'Đơn vị nhiệt độ tuyệt đối trong hệ SI là Kelvin (K).', 0.25, 'Nhận biết', 3),
+(5, 'mcq', 'Trong quá trình đẳng nhiệt của một lượng khí lí tưởng xác định (định luật Boyle), áp suất p và thể tích V liên hệ với nhau theo hệ thức:', 'pV² = hằng số', 'pV = hằng số', 'V/p = hằng số', 'p/V = hằng số', 'B', 'Định luật Boyle: ở nhiệt độ không đổi, pV = hằng số.', 0.25, 'Nhận biết', 4),
+(5, 'mcq', 'Động năng tịnh tiến trung bình của phân tử khí lí tưởng tỉ lệ thuận với đại lượng nào sau đây?', 'Diện tích thành bình', 'Nhiệt độ tuyệt đối T', 'Khối lượng riêng của khí', 'Thể tích bình chứa V', 'B', 'W_đ = (3/2)kT, tỉ lệ thuận trực tiếp với nhiệt độ tuyệt đối T.', 0.25, 'Nhận biết', 5),
+(5, 'mcq', 'Một vật dao động điều hòa với phương trình x = 4cos(5πt + π/6) (cm). Tần số góc của dao động là:', '10π rad/s', '5π rad/s', 'π/6 rad/s', '4 rad/s', 'B', 'So sánh với x = Acos(ωt + φ) ta có ω = 5π rad/s.', 0.25, 'Nhận biết', 6),
+(5, 'mcq', 'Sóng nào sau đây là sóng ngang và truyền được trong chân không?', 'Sóng âm trong không khí', 'Sóng siêu âm trong nước', 'Sóng điện từ', 'Sóng dọc trên lò xo', 'C', 'Sóng điện từ là sóng ngang và truyền được qua chân không với tốc độ c = 3.10⁸ m/s.', 0.25, 'Nhận biết', 7),
+(5, 'mcq', 'Từ thông Φ gửi qua một khung dây phẳng diện tích S đặt trong từ trường đều B được tính bởi công thức (α là góc hợp bởi vectơ pháp tuyến n và B):', 'Φ = B.S.tan(α)', 'Φ = B.S.sin(α)', 'Φ = B / (S.cos(α))', 'Φ = B.S.cos(α)', 'D', 'Công thức từ thông: Φ = B.S.cos(α).', 0.25, 'Nhận biết', 8),
+(5, 'mcq', 'Lực từ tác dụng lên một đoạn dây dẫn thẳng dài l mang dòng điện I đặt vuông góc với đường sức từ của từ trường đều B có độ lớn là:', 'F = B.I.l', 'F = B.I / l', 'F = 0', 'F = B.l / I', 'A', 'F = B.I.l.sin(90°) = B.I.l.', 0.25, 'Nhận biết', 9),
+(5, 'mcq', 'Suất điện động cảm ứng xuất hiện trong một mạch kín có độ lớn tỉ lệ thuận với:', 'Từ thông cực đại qua mạch', 'Tốc độ biến thiên từ thông qua mạch', 'Diện tích vòng dây', 'Điện trở của mạch kín', 'B', 'Định luật Faraday: |e_c| = |ΔΦ / Δt|.', 0.25, 'Nhận biết', 10),
+(5, 'mcq', 'Dòng điện xoay chiều chạy qua một đoạn mạch có biểu thức i = 4cos(100πt) (A). Cường độ dòng điện hiệu dụng là:', '4√2 A', '2 A', '4 A', '2√2 A', 'D', 'I = I₀ / √2 = 4 / √2 = 2√2 A.', 0.25, 'Thông hiểu', 11),
+(5, 'mcq', 'Hạt nhân nguyên tử ¹⁴₆C có số nơtron bằng:', '8', '20', '14', '6', 'A', 'Số nơtron N = A - Z = 14 - 6 = 8.', 0.25, 'Nhận biết', 12),
+(5, 'mcq', 'Tia phóng xạ nào sau đây có khả năng đâm xuyên mạnh nhất và không bị lệch trong điện trường, từ trường?', 'Tia gamma (γ)', 'Tia beta trừ (β⁻)', 'Tia anpha (α)', 'Tia beta cộng (β⁺)', 'A', 'Tia γ là sóng điện từ không mang điện, bước sóng cực ngắn nên đâm xuyên mạnh nhất.', 0.25, 'Nhận biết', 13),
+(5, 'mcq', 'Trong quá trình đẳng áp của một lượng khí lí tưởng, khi nhiệt độ tuyệt đối tăng lên 2 lần thì thể tích của khối khí sẽ:', 'Tăng lên 4 lần', 'Không thay đổi', 'Giảm đi 2 lần', 'Tăng lên 2 lần', 'D', 'Định luật Charles: V / T = hằng số ⇒ T tăng 2 lần thì V tăng 2 lần.', 0.25, 'Thông hiểu', 14),
+(5, 'mcq', 'Đun nóng 2 kg nước (nhiệt dung riêng c = 4200 J/kg.K) từ 20°C lên 70°C. Nhiệt lượng nước đã thu vào là:', '588 kJ', '168 kJ', '420 kJ', '42 kJ', 'C', 'Q = m.c.Δt = 2 × 4200 × (70 - 20) = 420 000 J = 420 kJ.', 0.25, 'Thông hiểu', 15),
+(5, 'mcq', 'Một đoạn dây dẫn dài 0.5 m mang dòng điện 4 A đặt vuông góc với cảm ứng từ B = 0.2 T. Độ lớn lực từ tác dụng lên đoạn dây là:', '0.4 N', '2.5 N', '0.1 N', '4.0 N', 'A', 'F = B.I.l.sin(90°) = 0.2 × 4 × 0.5 = 0.4 N.', 0.25, 'Thông hiểu', 16),
+(5, 'mcq', 'Trong thí nghiệm giao thoa ánh sáng Y-âng với a = 1 mm, D = 1.5 m, λ = 0.5 μm. Khoảng vân i trên màn là:', '3.00 mm', '1.50 mm', '0.50 mm', '0.75 mm', 'D', 'i = λD / a = (0.5 × 1.5) / 1 = 0.75 mm.', 0.25, 'Thông hiểu', 17),
+(5, 'mcq', 'Năng lượng liên kết của hạt nhân ⁴₂He là 28.4 MeV. Năng lượng liên kết riêng của hạt nhân này bằng:', '7.1 MeV/nuclôn', '14.2 MeV/nuclôn', '56.8 MeV/nuclôn', '28.4 MeV/nuclôn', 'A', 'E_lkr = W_lk / A = 28.4 / 4 = 7.1 MeV/nuclôn.', 0.25, 'Thông hiểu', 18),
+(5, 'true_false', 'Một học sinh làm nóng chảy hoàn toàn 0.5 kg nước đá ở 0°C thành nước lỏng ở 20°C. Biết nhiệt nóng chảy riêng của nước đá là λ = 3.34×10⁵ J/kg và nhiệt dung riêng của nước là c = 4200 J/(kg.K).', 'a) Trong suốt quá trình nước đá đang nóng chảy ở 0°C, nhiệt độ của hệ không thay đổi.', 'b) Nhiệt lượng cần để làm nóng chảy hoàn toàn 0.5 kg nước đá ở 0°C là 167 kJ.', 'c) Nhiệt lượng cần cung cấp để đun nước từ 0°C lên 20°C là 42 kJ.', 'd) Tổng nhiệt lượng cần cung cấp cho toàn bộ quá trình trên là 250 kJ.', 'D,D,D,S', 'a) Đúng.
+b) Đúng: Q₁ = mλ = 0.5 × 334 000 = 167 kJ.
+c) Đúng: Q₂ = mcΔt = 0.5 × 4200 × 20 = 42 kJ.
+d) Sai: Tổng Q = 167 + 42 = 209 kJ.', 1.00, 'Thông hiểu', 19),
+(5, 'true_false', 'Một lượng khí lí tưởng xác định chứa trong xi-lanh kín có pít-tông di chuyển được. Ban đầu khí có áp suất p₁ = 1.0×10⁵ Pa, thể tích V₁ = 4 lít và nhiệt độ T₁ = 300 K. Người ta nén đẳng nhiệt khí xuống còn V₂ = 2 lít.', 'a) Quá trình biến đổi trạng thái trên là quá trình đẳng nhiệt nên T₂ = 300 K.', 'b) Sau khi nén, áp suất của khối khí trong xi-lanh là 2.0×10⁵ Pa.', 'c) Trong quá trình nén đẳng nhiệt, nội năng của khí lí tưởng tăng lên gấp đôi.', 'd) Mật độ phân tử khí trong xi-lanh tăng lên gấp đôi sau khi nén.', 'D,D,S,D', 'a) Đúng.
+b) Đúng: p₂ = p₁V₁/V₂ = 2.0×10⁵ Pa.
+c) Sai: Nội năng khí lí tưởng chỉ phụ thuộc T; T không đổi nên ΔU = 0.
+d) Đúng: Thể tích giảm một nửa nên mật độ phân tử n = N/V tăng 2 lần.', 1.00, 'Vận dụng', 20),
+(5, 'true_false', 'Một khung dây dẫn phẳng hình vuông cạnh a = 10 cm gồm N = 100 vòng dây đặt cố định trong từ trường đều có cảm ứng từ B vuông góc với mặt phẳng khung. Trong thời gian Δt = 0.2 s, cảm ứng từ giảm đều từ 0.5 T về 0.1 T.', 'a) Diện tích mỗi vòng dây của khung là S = 0.01 m².', 'b) Độ biến thiên từ thông qua toàn bộ khung dây có độ lớn |ΔΦ| = 0.4 Wb.', 'c) Độ lớn suất điện động cảm ứng xuất hiện trong khung dây là 2.0 V.', 'd) Nếu giữ nguyên tốc độ biến thiên của B nhưng tăng số vòng dây lên 200 vòng thì suất điện động cảm ứng giảm đi một nửa.', 'D,D,D,S', 'a) Đúng: S = 0.1² = 0.01 m².
+b) Đúng: |ΔΦ| = 100 × 0.01 × |0.1 - 0.5| = 0.4 Wb.
+c) Đúng: |e_c| = 0.4 / 0.2 = 2.0 V.
+d) Sai: e_c tỉ lệ thuận với N nên tăng N lên 2 lần thì e_c tăng lên 2 lần.', 1.00, 'Vận dụng', 21),
+(5, 'true_false', 'Đồng vị phóng xạ ¹³¹₅₃I có chu kì bán rã T = 8 ngày, phát ra tia β⁻ và biến thành hạt nhân Xenon (¹³¹₅₄Xe). Ban đầu có một mẫu chứa 16 mg ¹³¹₅₃I nguyên chất.', 'a) Số khối của hạt nhân con Xenon tạo thành là 131.', 'b) Hằng số phóng xạ của ¹³¹₅₃I là λ = ln(2) / 8 (ngày⁻¹).', 'c) Sau 24 ngày kể từ thời điểm ban đầu, khối lượng ¹³¹₅₃I còn lại là 2 mg.', 'd) Sau 16 ngày, khối lượng ¹³¹₅₃I đã bị phân rã là 4 mg.', 'D,D,D,S', 'a) Đúng.
+b) Đúng.
+c) Đúng: 24 ngày = 3T ⇒ m = 16 / 2³ = 2 mg.
+d) Sai: Sau 16 ngày = 2T, lượng còn lại là 4 mg nên lượng đã phân rã là 16 - 4 = 12 mg.', 1.00, 'Vận dụng cao', 22),
+(5, 'short_answer', 'Một khối khí nhận nhiệt lượng Q = 800 J và nhận công A = 300 J từ bên ngoài. Tính độ biến thiên nội năng ΔU (theo đơn vị J) của khối khí đó.', NULL, NULL, NULL, NULL, '1100', 'ΔU = A + Q = 300 + 800 = 1100 J.', 0.25, 'Nhận biết', 23),
+(5, 'short_answer', 'Một bình kín chứa 2 mol khí lí tưởng ở nhiệt độ 27°C (300 K) và thể tích 8.31 lít. Lấy R = 8.31 J/(mol.K). Tính áp suất của khí trong bình theo đơn vị kPa.', NULL, NULL, NULL, NULL, '600', 'p = nRT / V = (2 × 8.31 × 300) / (8.31 × 10⁻³) = 600 000 Pa = 600 kPa.', 0.25, 'Thông hiểu', 24),
+(5, 'short_answer', 'Một sóng cơ truyền dọc theo trục Ox với tần số f = 25 Hz và tốc độ truyền sóng v = 10 m/s. Tính bước sóng λ theo đơn vị cm.', NULL, NULL, NULL, NULL, '40', 'λ = v / f = 10 / 25 = 0.4 m = 40 cm.', 0.25, 'Thông hiểu', 25),
+(5, 'short_answer', 'Một máy biến áp lí tưởng nối với điện áp hiệu dụng U₁ = 220 V ở cuộn sơ cấp có tỉ số vòng dây N₂/N₁ = 5. Tính điện áp hiệu dụng ở cuộn thứ cấp theo đơn vị V.', NULL, NULL, NULL, NULL, '1100', 'U₂ = U₁ × (N₂/N₁) = 220 × 5 = 1100 V.', 0.25, 'Vận dụng', 26),
+(5, 'short_answer', 'Một hạt nhân ²³⁵₉₂U phân hạch tỏa ra năng lượng 200 MeV. Lấy 1 eV = 1.6×10⁻¹⁹ J. Tính năng lượng tỏa ra khi 10²⁰ hạt nhân U-235 phân hạch hoàn toàn theo đơn vị MJ.', NULL, NULL, NULL, NULL, '3200', 'E = 10²⁰ × 200×10⁶ × 1.6×10⁻¹⁹ = 3.2×10⁹ J = 3200 MJ.', 0.25, 'Vận dụng', 27),
+(5, 'short_answer', 'Trong thí nghiệm giao thoa Y-âng, a = 1 mm, D = 2 m, nguồn phát đồng thời hai bức xạ λ₁ = 0.48 μm và λ₂ = 0.64 μm. Tính khoảng cách ngắn nhất (theo đơn vị mm) giữa hai vân sáng cùng màu với vân sáng trung tâm.', NULL, NULL, NULL, NULL, '3.84', 'k₁/k₂ = 0.64/0.48 = 4/3 ⇒ x = 4.i₁ = 4 × (0.48×2/1) = 3.84 mm.', 0.25, 'Vận dụng cao', 28),
+(6, 'mcq', 'Nội năng của một vật phụ thuộc vào đại lượng nào sau đây?', 'Độ cao của vật so với mặt đất', 'Màu sắc bề mặt vật', 'Nhiệt độ và thể tích của vật', 'Vận tốc chuyển động của cả vật', 'C', 'Nội năng gồm động năng phân tử (nhiệt độ) và thế năng tương tác phân tử (thể tích).', 0.25, 'Nhận biết', 1),
+(6, 'mcq', 'Mối liên hệ giữa nhiệt độ theo thang Kelvin (T) và nhiệt độ theo thang Celsius (t) là:', 'T (K) = 1.8 t (°C) + 32', 'T (K) = t (°C) + 273', 'T (K) = 273 - t (°C)', 'T (K) = t (°C) - 273', 'B', 'Quy đổi thang nhiệt độ: T (K) = t (°C) + 273.', 0.25, 'Nhận biết', 2),
+(6, 'mcq', 'Hiện tượng cộng hưởng cơ xảy ra khi tần số của ngoại lực cưỡng bức:', 'Lớn gấp đôi tần số riêng', 'Bằng tần số riêng của hệ dao động', 'Bằng 0', 'Nhỏ hơn một nửa tần số riêng', 'B', 'Cộng hưởng cơ xảy ra khi f_cưỡng bức = f_riêng.', 0.25, 'Nhận biết', 3),
+(6, 'mcq', 'Khoảng cách giữa hai nút sóng liên tiếp trên một sợi dây đang có sóng dừng bằng:', 'λ', 'λ / 4', '2λ', 'λ / 2', 'D', 'Hai nút liên tiếp trên dây có sóng dừng cách nhau λ/2.', 0.25, 'Nhận biết', 4),
+(6, 'mcq', 'Trong mạch điện xoay chiều chỉ có điện trở thuần R, cường độ dòng điện tức thời i và điện áp u:', 'Lệch pha π/3', 'Ngược pha với nhau', 'Vuông pha với nhau', 'Cùng pha với nhau', 'D', 'Mạch chỉ có R thì φ = 0 ⇒ u và i cùng pha.', 0.25, 'Nhận biết', 5),
+(6, 'mcq', 'Công thức tính công suất tiêu thụ trung bình của đoạn mạch điện xoay chiều là:', 'P = U / I', 'P = U.I.sinφ', 'P = U.I.cosφ', 'P = U₀.I₀.cosφ', 'C', 'Công suất tiêu thụ P = U.I.cosφ.', 0.25, 'Nhận biết', 6),
+(6, 'mcq', 'Trong thang sóng điện từ, bức xạ nào có bước sóng nhỏ hơn bước sóng ánh sáng tím và dùng để chụp X-quang y tế?', 'Tia X', 'Sóng vô tuyến', 'Tia hồng ngoại', 'Ánh sáng đỏ', 'A', 'Tia X có bước sóng rất ngắn (10⁻¹¹ m đến 10⁻⁸ m), khả năng đâm xuyên mạnh.', 0.25, 'Nhận biết', 7),
+(6, 'mcq', 'Trong thí nghiệm Y-âng về giao thoa ánh sáng đơn sắc, vân tối xuất hiện tại các vị trí có hiệu đường đi d₂ - d₁ bằng:', '2kλ', 'kλ (k ∈ ℤ)', '(k + 0.5)λ (k ∈ ℤ)', 'kλ / 4', 'C', 'Điều kiện vân tối: d₂ - d₁ = (k + 0.5)λ.', 0.25, 'Nhận biết', 8),
+(6, 'mcq', 'Hạt nhân nào sau đây có độ bền vững lớn nhất (năng lượng liên kết riêng lớn nhất khoảng 8.8 MeV/nuclôn)?', '⁴₂He (Heli)', '²³⁵₉₂U (Urani)', '⁵⁶₂₆Fe (Sắt)', '²₁H (Đơteri)', 'C', 'Các hạt nhân trung bình (tiêu biểu là ⁵⁶₂₆Fe) có năng lượng liên kết riêng lớn nhất.', 0.25, 'Nhận biết', 9),
+(6, 'mcq', 'Theo hệ thức Anh-xtanh, một vật có khối lượng m thì có năng lượng nghỉ E₀ bằng:', 'E₀ = m.c', 'E₀ = (1/2)m.c²', 'E₀ = m.c²', 'E₀ = m / c²', 'C', 'Hệ thức Anh-xtanh: E = m.c².', 0.25, 'Nhận biết', 10),
+(6, 'mcq', 'Một lượng khí lí tưởng thực hiện quá trình đẳng áp. Ban đầu khí có thể tích 6 lít ở nhiệt độ 300 K. Khi tăng nhiệt độ lên 450 K thì thể tích của khối khí là:', '12 lít', '4 lít', '9 lít', '7.5 lít', 'C', 'V₁/T₁ = V₂/T₂ ⇒ V₂ = 6 × (450 / 300) = 9 lít.', 0.25, 'Thông hiểu', 11),
+(6, 'mcq', 'Một đoạn dây dẫn thẳng dài 0.5 m mang dòng điện 6 A đặt vuông góc với từ trường đều B = 0.25 T. Lực từ tác dụng lên đoạn dây có độ lớn là:', '0.30 N', '1.50 N', '3.00 N', '0.75 N', 'D', 'F = B.I.l.sin(90°) = 0.25 × 6 × 0.5 = 0.75 N.', 0.25, 'Thông hiểu', 12),
+(6, 'mcq', 'Một vật dao động điều hòa với phương trình x = 10cos(4πt + π/3) (cm). Tại t = 0, vật đang ở vị trí:', 'x = 5 cm và đi theo chiều dương', 'x = -5 cm và đi theo chiều âm', 'x = 5 cm và đi theo chiều âm', 'x = 5√3 cm và đi theo chiều dương', 'C', 'Tại t = 0: x = 10cos(π/3) = 5 cm; pha φ = π/3 > 0 ⇒ v < 0 (chiều âm).', 0.25, 'Thông hiểu', 13),
+(6, 'mcq', 'Một sóng cơ truyền với tần số 50 Hz, tốc độ truyền sóng 10 m/s. Hai điểm gần nhau nhất trên phương truyền sóng dao động ngược pha cách nhau:', '10 cm', '40 cm', '5 cm', '20 cm', 'A', 'λ = v/f = 0.2 m = 20 cm ⇒ hai điểm ngược pha gần nhất cách nhau λ/2 = 10 cm.', 0.25, 'Thông hiểu', 14),
+(6, 'mcq', 'Đặt điện áp u = 220√2cos(100πt) (V) vào mạch điện thì dòng điện là i = 2√2cos(100πt - π/3) (A). Công suất tiêu thụ của mạch là:', '220 W', '110 W', '440 W', '880 W', 'A', 'P = U.I.cosφ = 220 × 2 × cos(π/3) = 220 W.', 0.25, 'Thông hiểu', 15),
+(6, 'mcq', 'Sóng điện từ tần số f = 15 MHz truyền trong chân không với tốc độ c = 3×10⁸ m/s có bước sóng là:', '45 m', '2 m', '200 m', '20 m', 'D', 'λ = c / f = (3×10⁸) / (15×10⁶) = 20 m.', 0.25, 'Thông hiểu', 16),
+(6, 'mcq', 'Trong thí nghiệm Y-âng, a = 0.5 mm, D = 1.5 m, λ = 0.6 μm. Khoảng cách từ vân sáng bậc 2 đến vân sáng bậc 5 cùng một phía vân trung tâm là:', '9.0 mm', '3.6 mm', '5.4 mm', '1.8 mm', 'C', 'i = (0.6×1.5)/0.5 = 1.8 mm ⇒ khoảng cách = 3i = 5.4 mm.', 0.25, 'Thông hiểu', 17),
+(6, 'mcq', 'Cho phản ứng phân hạch: ¹₀n + ²³⁵₉₂U → ⁹⁵₃₉Y + ¹³⁸₅₃I + x.¹₀n. Giá trị của x là:', '2', '4', '3', '1', 'C', 'Bảo toàn số khối A: 1 + 235 = 95 + 138 + x ⇒ x = 3.', 0.25, 'Thông hiểu', 18),
+(6, 'true_false', 'Một bình kín thể tích không đổi V = 16.62 lít chứa 2 mol khí lí tưởng ở nhiệt độ 27°C (300 K). Lấy hằng số khí lí tưởng R = 8.31 J/(mol.K).', 'a) Nhiệt độ tuyệt đối ban đầu của khối khí là T₁ = 300 K.', 'b) Áp suất ban đầu của khí trong bình là 3.0×10⁵ Pa.', 'c) Nếu đun nóng đẳng tích khối khí lên đến nhiệt độ 327°C thì áp suất khí trong bình tăng lên gấp đôi.', 'd) Ở nhiệt độ 327°C, động năng tịnh tiến trung bình của mỗi phân tử khí giảm đi một nửa so với lúc đầu.', 'D,D,D,S', 'a) Đúng.
+b) Đúng: p₁ = (2 × 8.31 × 300) / (16.62 × 10⁻³) = 300 000 Pa = 3.0×10⁵ Pa.
+c) Đúng: T₂ = 327 + 273 = 600 K = 2.T₁ ⇒ p₂ = 2.p₁.
+d) Sai: Động năng trung bình tỉ lệ thuận với T nên tăng gấp đôi.', 1.00, 'Vận dụng', 19),
+(6, 'true_false', 'Một sợi dây đàn hồi AB dài 1.2 m có hai đầu A, B cố định đang có sóng dừng ổn định với 4 bụng sóng. Biết tốc độ truyền sóng trên dây là 30 m/s.', 'a) Trên dây có tất cả 5 nút sóng (kể cả hai đầu A, B).', 'b) Bước sóng của sóng truyền trên dây là 0.6 m.', 'c) Tần số dao động của dây là 50 Hz.', 'd) Khoảng thời gian giữa hai lần liên tiếp sợi dây duỗi thẳng là 0.02 s.', 'D,D,D,S', 'a) Đúng: 4 bụng ⇒ 4 + 1 = 5 nút.
+b) Đúng: 1.2 = 4(λ/2) ⇒ λ = 0.6 m.
+c) Đúng: f = v/λ = 30 / 0.6 = 50 Hz.
+d) Sai: Hai lần dây duỗi thẳng liên tiếp cách nhau T/2 = 1/(2×50) = 0.01 s.', 1.00, 'Vận dụng', 20),
+(6, 'true_false', 'Một đoạn dây dẫn thẳng dài l = 0.5 m mang dòng điện không đổi I = 8 A đặt trong từ trường đều có cảm ứng từ B = 0.4 T sao cho dây hợp với vectơ cảm ứng từ một góc θ = 30°.', 'a) Lực từ tác dụng lên đoạn dây có phương vuông góc với cả dòng điện và đường sức từ.', 'b) Độ lớn lực từ tác dụng lên đoạn dây là 0.8 N.', 'c) Nếu xoay đoạn dây để nó nằm song song với các đường sức từ thì lực từ đạt giá trị cực đại.', 'd) Nếu giữ nguyên góc θ = 30° nhưng tăng cường độ dòng điện lên 16 A thì lực từ tăng lên 1.6 N.', 'D,D,S,D', 'a) Đúng.
+b) Đúng: F = 0.4 × 8 × 0.5 × sin(30°) = 0.8 N.
+c) Sai: Khi song song (θ = 0°) thì sin(0°) = 0 ⇒ F = 0.
+d) Đúng: F tỉ lệ thuận với I.', 1.00, 'Vận dụng', 21),
+(6, 'true_false', 'Chất phóng xạ ¹⁴₆C có chu kì bán rã T = 5730 năm. Một mẫu gỗ cổ đại có độ phóng xạ đo được chỉ bằng 25% độ phóng xạ của một mẫu gỗ tươi mới chặt có cùng khối lượng.', 'a) Hạt nhân ¹⁴₆C có 6 prôtôn và 8 nơtron.', 'b) Tuổi của mẫu gỗ cổ đại nói trên là 11460 năm.', 'c) Sau thêm 5730 năm nữa kể từ hiện tại, độ phóng xạ của mẫu gỗ cổ sẽ giảm xuống còn 12.5% so với mẫu gỗ tươi.', 'd) Chu kì bán rã của ¹⁴₆C phụ thuộc vào nhiệt độ và áp suất của môi trường xung quanh.', 'D,D,D,S', 'a) Đúng.
+b) Đúng: H/H₀ = 0.25 = 2⁻² ⇒ t = 2T = 11460 năm.
+c) Đúng: thêm 1T nữa ⇒ H/H₀ = 2⁻³ = 12.5%.
+d) Sai: Chu kì bán rã là hằng số đặc trưng của hạt nhân, không phụ thuộc điều kiện bên ngoài.', 1.00, 'Vận dụng cao', 22),
+(6, 'short_answer', 'Nhiệt nóng chảy riêng của nước đá là λ = 3.34×10⁵ J/kg. Tính nhiệt lượng (theo đơn vị kJ) cần cung cấp để làm nóng chảy hoàn toàn 200 g nước đá ở 0°C.', NULL, NULL, NULL, NULL, '66.8', 'Q = m.λ = 0.2 × 334 000 = 66 800 J = 66.8 kJ.', 0.25, 'Nhận biết', 23),
+(6, 'short_answer', 'Một khung dây phẳng gồm 200 vòng dây có diện tích mỗi vòng S = 25 cm² đặt vuông góc với từ trường đều. Trong 0.1 s, cảm ứng từ tăng đều từ 0.2 T lên 0.6 T. Tính độ lớn suất điện động cảm ứng trong khung theo đơn vị V.', NULL, NULL, NULL, NULL, '2', '|e_c| = 200 × 25×10⁻⁴ × (0.6 - 0.2) / 0.1 = 2.0 V.', 0.25, 'Thông hiểu', 24),
+(6, 'short_answer', 'Một vật dao động điều hòa có phương trình x = 6cos(2πt) (cm). Tính tốc độ cực đại của vật theo đơn vị cm/s (lấy π ≈ 3.14, làm tròn đến hàng phần trăm).', NULL, NULL, NULL, NULL, '37.68', 'v_max = ωA = 2π × 6 = 12π ≈ 12 × 3.14 = 37.68 cm/s.', 0.25, 'Thông hiểu', 25),
+(6, 'short_answer', 'Một máy biến áp lí tưởng truyền điện đi xa với điện áp hiệu dụng U₁ = 10 kV thì hiệu suất truyền tải đạt 91%. Để hiệu suất tăng lên 99% (công suất phát và điện trở dây không đổi), cần tăng điện áp nơi phát lên bao nhiêu kV?', NULL, NULL, NULL, NULL, '30', 'Hao phí giảm 9 lần (9% → 1%) nên U tăng √9 = 3 lần ⇒ U₂ = 30 kV.', 0.25, 'Vận dụng', 26),
+(6, 'short_answer', 'Một chất điểm dao động điều hòa với chu kì T = 1.2 s. Thời gian ngắn nhất vật đi từ vị trí có li độ x = A/2 đến vị trí cân bằng x = 0 là bao nhiêu giây?', NULL, NULL, NULL, NULL, '0.1', 'Khoảng thời gian đi từ A/2 đến 0 là T/12 = 1.2 / 12 = 0.1 s.', 0.25, 'Vận dụng', 27),
+(6, 'short_answer', 'Trong thí nghiệm Y-âng, hai khe cách nhau a = 1 mm, màn D = 2 m, chiếu ánh sáng trắng có bước sóng từ 0.38 μm đến 0.76 μm. Tại vị trí M trên màn cách vân trung tâm 3.6 mm có bao nhiêu bức xạ đơn sắc cho vân sáng?', NULL, NULL, NULL, NULL, '2', 'λ = a.x_M / (k.D) = 1.8 / k (μm). Với 0.38 ≤ 1.8/k ≤ 0.76 ⇔ 2.37 ≤ k ≤ 4.74 ⇒ k ∈ {3; 4} (2 bức xạ).', 0.25, 'Vận dụng cao', 28),
+(7, 'mcq', 'Công thức cấu tạo thu gọn của metyl fomat là:', 'HCOOC₂H₅', 'CH₃COOH', 'CH₃COOCH₃', 'HCOOCH₃', 'D', 'Metyl fomat tạo bởi axit fomic (HCOOH) và ancol metylic (CH₃OH) ⇒ HCOOCH₃.', 0.25, 'Nhận biết', 1),
+(7, 'mcq', 'Chất nào sau đây là thành phần chính tạo nên độ ngọt trong mật ong?', 'Tinh bột', 'Saccarozơ', 'Fructozơ', 'Xenlulozơ', 'C', 'Fructozơ chiếm khoảng 40% trong mật ong (đường mật ong).', 0.25, 'Nhận biết', 2),
+(7, 'mcq', 'Thủy phân hoàn toàn chất béo (triglixerit) trong môi trường kiềm luôn thu được muối của axit béo và:', 'Etylen glicol', 'Ancol etylic', 'Glixerol (C₃H₅(OH)₃)', 'Phenol', 'C', 'Chất béo là trieste của glixerol và axit béo.', 0.25, 'Nhận biết', 3),
+(7, 'mcq', 'Tên gọi thay thế theo danh pháp IUPAC của CH₃-NH-CH₃ là:', 'Etanamin', 'Phenylamin', 'N-metylmetanamin', 'Metanamin', 'C', 'CH₃-NH-CH₃ là amin bậc II: N-metylmetanamin (đimetylamin).', 0.25, 'Nhận biết', 4),
+(7, 'mcq', 'Trong phân tử amino axit Alanin (CH₃-CH(NH₂)-COOH), số nguyên tử cacbon là:', '5', '2', '4', '3', 'D', 'Alanin có CTPT C₃H₇NO₂ (3 nguyên tử C).', 0.25, 'Nhận biết', 5),
+(7, 'mcq', 'Polime nào sau đây được dùng làm chất dẻo phổ biến từ phản ứng trùng hợp vinyl clorua?', 'Tinh bột', 'Xenlulozơ', 'Tơ tằm', 'Poli(vinyl clorua) (PVC)', 'D', 'Trùng hợp CH₂=CHCl thu được PVC.', 0.25, 'Nhận biết', 6),
+(7, 'mcq', 'Trong pin điện hóa Zn-Cu chuẩn, ở cực âm (anôt) xảy ra quá trình:', 'Sự khử ion Cu²⁺: Cu²⁺ + 2e → Cu', 'Sự khử ion Zn²⁺: Zn²⁺ + 2e → Zn', 'Sự oxi hóa kim loại Cu: Cu → Cu²⁺ + 2e', 'Sự oxi hóa kim loại Zn: Zn → Zn²⁺ + 2e', 'D', 'Zn có tính khử mạnh hơn Cu nên đóng vai trò anôt (cực âm), xảy ra sự oxi hóa Zn.', 0.25, 'Nhận biết', 7),
+(7, 'mcq', 'Kim loại nào sau đây có tính dẫn điện tốt nhất trong tất cả các kim loại?', 'Nhôm (Al)', 'Đồng (Cu)', 'Vàng (Au)', 'Bạc (Ag)', 'D', 'Thứ tự dẫn điện: Ag > Cu > Au > Al > Fe.', 0.25, 'Nhận biết', 8),
+(7, 'mcq', 'Kim loại nào sau đây có nhiệt độ nóng chảy cao nhất, thường dùng làm dây tóc bóng đèn?', 'Nhôm (Al)', 'Vonfam (W)', 'Thủy ngân (Hg)', 'Sắt (Fe)', 'B', 'Vonfam (W) nóng chảy ở 3410°C, cao nhất trong các kim loại.', 0.25, 'Nhận biết', 9),
+(7, 'mcq', 'Hợp chất nào sau đây của canxi được dùng để đúc tượng, bó bột khi gãy xương (thạch cao nung)?', 'CaSO₄.H₂O', 'Ca(OH)₂', 'CaCl₂', 'CaCO₃', 'A', 'Thạch cao nung có công thức CaSO₄.H₂O (hoặc CaSO₄.0,5H₂O).', 0.25, 'Nhận biết', 10),
+(7, 'mcq', 'Số oxi hóa của nguyên tố sắt (Fe) trong hợp chất Fe₂(SO₄)₃ là:', '+2', '0', '+6', '+3', 'D', 'Gốc SO₄²⁻ hóa trị II nên Fe có số oxi hóa +3.', 0.25, 'Nhận biết', 11),
+(7, 'mcq', 'Trong dung dịch phức chất [Cu(NH₃)₄(H₂O)₂]²⁺, nguyên tử/ion trung tâm là:', 'Cu²⁺', 'H₂O', 'OH⁻', 'NH₃', 'A', 'Ion kim loại chuyển tiếp Cu²⁺ là nguyên tử trung tâm tạo phức với phối tử NH₃ và H₂O.', 0.25, 'Thông hiểu', 12),
+(7, 'mcq', 'Cho các dung dịch riêng biệt: glucozơ, saccarozơ, lòng trắng trứng (albumin). Thuốc thử duy nhất để phân biệt cả 3 dung dịch trên là:', 'Cu(OH)₂/OH⁻ đun nhẹ', 'Quỳ tím', 'Dung dịch HCl', 'Dung dịch NaCl', 'A', 'Ở nhiệt độ thường: albumin cho màu tím (biure), glucozơ & saccarozơ cho dung dịch xanh lam. Đun nóng: glucozơ tạo kết tủa đỏ gạch Cu₂O, saccarozơ không phản ứng.', 0.25, 'Thông hiểu', 13),
+(7, 'mcq', 'Thủy phân hoàn toàn 7.4 gam metyl axetat (CH₃COOCH₃, M = 74) bằng dung dịch NaOH dư thu được khối lượng ancol metylic (M = 32) là:', '3.2 gam', '1.6 gam', '4.6 gam', '6.4 gam', 'A', 'n_este = 0.1 mol ⇒ n_CH₃OH = 0.1 mol ⇒ m = 0.1 × 32 = 3.2 gam.', 0.25, 'Thông hiểu', 14),
+(7, 'mcq', 'Cho thế điện cực chuẩn E°(Zn²⁺/Zn) = -0.76 V và E°(Cu²⁺/Cu) = +0.34 V. Sức điện động chuẩn của pin Galvani Zn-Cu bằng:', '0.76 V', '-1.10 V', '1.10 V', '0.42 V', 'C', 'E°_pin = E°_catôt - E°_anôt = 0.34 - (-0.76) = 1.10 V.', 0.25, 'Thông hiểu', 15),
+(7, 'mcq', 'Ngâm một lá kẽm (Zn) trong dung dịch H₂SO₄ loãng thấy khí thoát ra chậm. Nhỏ thêm vài giọt dung dịch CuSO₄ vào thấy khí thoát ra nhanh hơn hẳn là do:', 'Xuất hiện cặp pin điện hóa Zn-Cu gây ra ăn mòn điện hóa', 'H₂SO₄ bị phân hủy nhanh hơn', 'Cu đẩy Zn ra khỏi dung dịch axit', 'CuSO₄ làm tăng nồng độ axit H₂SO₄', 'A', 'Zn đẩy Cu bám lên Zn tạo thành vô số pin điện hóa Zn-Cu, tốc độ ăn mòn tăng mạnh.', 0.25, 'Thông hiểu', 16),
+(7, 'mcq', 'Để làm mềm nước có tính cứng toàn phần, hóa chất hiệu quả nhất là:', 'Dung dịch Na₂CO₃ (hoặc Na₃PO₄)', 'Dung dịch NaCl', 'Đun sôi nước', 'Dung dịch HCl', 'A', 'Ion CO₃²⁻ kết tủa hoàn toàn cả Ca²⁺ và Mg²⁺ trong nước cứng toàn phần.', 0.25, 'Thông hiểu', 17),
+(7, 'mcq', 'Cho 5.6 gam Fe (M = 56) tác dụng với lượng dư dung dịch AgNO₃. Sau phản ứng hoàn toàn, khối lượng Ag (M = 108) thu được tối đa là:', '32.4 gam', '21.6 gam', '10.8 gam', '16.2 gam', 'A', 'n_Fe = 0.1 mol. Do AgNO₃ dư nên Fe lên Fe³⁺ ⇒ n_Ag = 3.n_Fe = 0.3 mol ⇒ m = 0.3 × 108 = 32.4 gam.', 0.25, 'Thông hiểu', 18),
+(7, 'true_false', 'Tiến hành thí nghiệm phản ứng xà phòng hóa chất béo: Cho vào bát sứ khoảng 2 gam mỡ lợn và 4 ml dung dịch NaOH 40%, đun sôi nhẹ và khuấy liên tục trong 10 phút, thêm từng giọt nước cất để giữ thể tích không đổi. Sau đó rót thêm 10 ml dung dịch NaCl bão hòa vào, khuấy nhẹ rồi để nguội.', 'a) Phản ứng xảy ra khi đun nóng mỡ lợn với dung dịch NaOH là phản ứng thuận nghịch.', 'b) Việc thêm nước cất trong quá trình đun nhằm tránh hỗn hợp bị cạn khô để phản ứng xảy ra hoàn toàn.', 'c) Sau khi thêm dung dịch NaCl bão hòa và để nguội, lớp chất rắn màu trắng nổi lên trên là muối natri của axit béo.', 'd) Dung dịch NaCl bão hòa làm giảm độ tan của xà phòng và tăng tỉ trọng lớp dung dịch phía dưới để tách xà phòng dễ dàng.', 'S,D,D,D', 'a) Sai: Xà phòng hóa trong kiềm là phản ứng một chiều.
+b) Đúng.
+c) Đúng.
+d) Đúng.', 1.00, 'Thông hiểu', 19),
+(7, 'true_false', 'Xét dung dịch của các amino axit: Glyxin (H₂N-CH₂-COOH), Axit glutamic (HOOC-CH₂-CH₂-CH(NH₂)-COOH) và Lysin (H₂N-[CH₂]₄-CH(NH₂)-COOH).', 'a) Ở nhiệt độ thường, các amino axit này đều là chất rắn kết tinh, tan tốt trong nước.', 'b) Dung dịch Axit glutamic làm quỳ tím chuyển sang màu đỏ (hồng).', 'c) Dung dịch Lysin không làm đổi màu giấy quỳ tím.', 'd) Cả ba chất trên đều có tính lưỡng tính, tác dụng được với cả dung dịch HCl và dung dịch NaOH.', 'D,D,S,D', 'a) Đúng.
+b) Đúng: có 2 nhóm -COOH và 1 nhóm -NH₂.
+c) Sai: Lysin có 2 nhóm -NH₂ và 1 nhóm -COOH nên làm quỳ tím hóa xanh.
+d) Đúng.', 1.00, 'Thông hiểu', 20);
+
+INSERT INTO questions (exam_id, question_type, question_text, option_a, option_b, option_c, option_d, correct_option, explanation, points_value, difficulty, sort_order) VALUES
+(7, 'true_false', 'Thực hiện điện phân 200 ml dung dịch CuSO₄ 1M với điện cực trơ bằng dòng điện có cường độ I = 5 A trong thời gian t = 3860 giây (biết hằng số Faraday F = 96500 C/mol).', 'a) Số mol electron trao đổi tại mỗi điện cực là 0.2 mol.', 'b) Tại catôt xảy ra quá trình khử ion Cu²⁺: Cu²⁺ + 2e → Cu.', 'c) Sau 3860 giây, khối lượng kim loại Cu (M = 64) bám trên catôt là 12.8 gam.', 'd) Tại anôt thu được 0.05 mol khí O₂.', 'D,D,S,D', 'a) Đúng: n_e = (5 × 3860) / 96500 = 0.2 mol.
+b) Đúng.
+c) Sai: n_Cu = 0.2 / 2 = 0.1 mol ⇒ m_Cu = 6.4 gam.
+d) Đúng: n_O₂ = n_e / 4 = 0.05 mol.', 1.00, 'Vận dụng', 21),
+(7, 'true_false', 'Trong công nghiệp luyện gang, người ta khử 1 tấn quặng hematit chứa 80% khối lượng Fe₂O₃ (tạp chất trơ không chứa sắt) bằng khí CO theo phản ứng: Fe₂O₃ + 3CO → 2Fe + 3CO₂.', 'a) Phản ứng khử oxit sắt bằng khí CO thuộc phương pháp nhiệt luyện.', 'b) Trong phản ứng trên, khí CO đóng vai trò là chất oxi hóa.', 'c) Khối lượng Fe₂O₃ nguyên chất có trong 1 tấn (1000 kg) quặng là 800 kg.', 'd) Với hiệu suất toàn bộ quá trình đạt 90%, khối lượng sắt (Fe = 56, O = 16) thu được là 504 kg.', 'D,S,D,D', 'a) Đúng.
+b) Sai: CO là chất khử.
+c) Đúng: 1000 × 80% = 800 kg.
+d) Đúng: n_Fe₂O₃ = 5 kmol ⇒ m_Fe = 2 × 5 × 56 × 90% = 504 kg.', 1.00, 'Vận dụng cao', 22),
+(7, 'short_answer', 'Số nguyên tử hiđro (H) có trong một phân tử axit oleic (C₁₇H₃₃COOH) là bao nhiêu?', NULL, NULL, NULL, NULL, '34', 'C₁₇H₃₃COOH = C₁₈H₃₄O₂ ⇒ có 34 nguyên tử H.', 0.25, 'Nhận biết', 23),
+(7, 'short_answer', 'Cho dãy các chất: etyl axetat, glucozơ, saccarozơ, tinh bột, triolein. Có bao nhiêu chất trong dãy tham gia phản ứng thủy phân trong môi trường axit?', NULL, NULL, NULL, NULL, '4', 'Gồm etyl axetat, saccarozơ, tinh bột, triolein (4 chất).', 0.25, 'Thông hiểu', 24),
+(7, 'short_answer', 'Thủy phân hoàn toàn 12 gam metyl fomat (HCOOCH₃, M = 60) trong dung dịch NaOH dư. Tính khối lượng muối natri fomat (HCOONa, M = 68) thu được theo đơn vị gam.', NULL, NULL, NULL, NULL, '13.6', 'n_este = 12/60 = 0.2 mol ⇒ m_muối = 0.2 × 68 = 13.6 gam.', 0.25, 'Thông hiểu', 25),
+(7, 'short_answer', 'Lên men 45 gam glucozơ (M = 180) thành ancol etylic (M = 46) với hiệu suất 80%. Tính khối lượng ancol etylic thu được theo đơn vị gam.', NULL, NULL, NULL, NULL, '18.4', 'n_glu = 0.25 mol ⇒ n_ancol = 2 × 0.25 × 0.8 = 0.4 mol ⇒ m = 0.4 × 46 = 18.4 gam.', 0.25, 'Vận dụng', 26),
+(7, 'short_answer', 'Cho 10.8 gam kim loại Al (M = 27) tác dụng hoàn toàn với dung dịch HNO₃ loãng dư thu được V lít khí N₂O (sản phẩm khử duy nhất, ở ĐKC 24.79 lít/mol). Tính giá trị của V (làm tròn đến hàng phần trăm).', NULL, NULL, NULL, NULL, '3.72', 'n_Al = 0.4 mol ⇒ 8.n_N₂O = 3.n_Al ⇒ n_N₂O = 0.15 mol ⇒ V = 0.15 × 24.79 = 3.7185 ≈ 3.72 lít.', 0.25, 'Vận dụng', 27),
+(7, 'short_answer', 'Hòa tan hoàn toàn 16 gam một oxit sắt FeₓOᵧ bằng dung dịch H₂SO₄ đặc, nóng dư thu được 1.2395 lít khí SO₂ (ở ĐKC 24.79 lít/mol) và dung dịch chứa 40 gam muối Fe₂(SO₄)₃ (M = 400). Tính khối lượng sắt (Fe = 56) có trong 16 gam oxit sắt ban đầu theo đơn vị gam.', NULL, NULL, NULL, NULL, '11.2', 'n_Fe₂(SO₄)₃ = 40/400 = 0.1 mol ⇒ n_Fe = 0.2 mol ⇒ m_Fe = 0.2 × 56 = 11.2 gam.', 0.25, 'Vận dụng cao', 28),
+(8, 'mcq', 'Chất nào sau đây có công thức phân tử C₂H₄O₂ và phản ứng được với dung dịch NaOH?', 'Ancol etylic', 'Metyl fomat (HCOOCH₃)', 'Etyl axetat', 'Glucozơ', 'B', 'HCOOCH₃ có CTPT C₂H₄O₂ và là este nên tác dụng với NaOH.', 0.25, 'Nhận biết', 1),
+(8, 'mcq', 'Sản phẩm của phản ứng este hóa giữa axit axetic và ancol etylic là:', 'Etyl fomat và nước', 'Etyl axetat và nước', 'Natri axetat và etanol', 'Metyl axetat và nước', 'B', 'CH₃COOH + C₂H₅OH ⇄ CH₃COOC₂H₅ + H₂O.', 0.25, 'Nhận biết', 2),
+(8, 'mcq', 'Chất nào sau đây KHÔNG tan trong nước lạnh nhưng trương phồng tạo hồ tinh bột khi đun nóng?', 'Saccarozơ', 'Fructozơ', 'Glucozơ', 'Tinh bột', 'D', 'Tinh bột tạo dung dịch keo hồ tinh bột trong nước nóng.', 0.25, 'Nhận biết', 3),
+(8, 'mcq', 'Amin nào sau đây là amin thơm?', 'Anilin (C₆H₅NH₂)', 'Etylamin', 'Metylamin', 'Đimetylamin', 'A', 'Anilin (C₆H₅NH₂) có nhóm -NH₂ gắn trực tiếp vào vòng benzen.', 0.25, 'Nhận biết', 4),
+(8, 'mcq', 'Số liên kết peptit trong phân tử tetrapeptit mạch hở Ala-Gly-Val-Gly là:', '4', '3', '2', '5', 'B', 'Tetrapeptit gồm 4 gốc α-amino axit nên có 4 - 1 = 3 liên kết peptit.', 0.25, 'Nhận biết', 5),
+(8, 'mcq', 'Monome dùng để tổng hợp tơ nitron (tơ olon) là:', 'Etilen', 'Vinyl clorua', 'Acrilonitrin (CH₂=CH-CN)', 'Stiren', 'C', 'Trùng hợp acrilonitrin thu được poli(acrilonitrin) để kéo tơ nitron.', 0.25, 'Nhận biết', 6),
+(8, 'mcq', 'Ở nhiệt độ thường, kim loại nào sau đây có tính dẻo cao nhất?', 'Bạc (Ag)', 'Vàng (Au)', 'Nhôm (Al)', 'Đồng (Cu)', 'B', 'Vàng (Au) là kim loại dẻo nhất.', 0.25, 'Nhận biết', 7),
+(8, 'mcq', 'Kim loại nào sau đây tan hoàn toàn trong dung dịch NaOH dư ở nhiệt độ thường?', 'Nhôm (Al)', 'Sắt (Fe)', 'Magie (Mg)', 'Đồng (Cu)', 'A', '2Al + 2NaOH + 2H₂O → 2NaAlO₂ + 3H₂↑.', 0.25, 'Nhận biết', 8),
+(8, 'mcq', 'Nước vôi trong là dung dịch của chất nào sau đây?', 'KOH', 'Ca(OH)₂', 'NaOH', 'BaCl₂', 'B', 'Nước vôi trong là dung dịch canxi hiđroxit Ca(OH)₂.', 0.25, 'Nhận biết', 9),
+(8, 'mcq', 'Công thức hóa học của oxit sắt từ là:', 'FeCO₃', 'Fe₂O₃', 'Fe₃O₄', 'FeO', 'C', 'Oxit sắt từ là Fe₃O₄.', 0.25, 'Nhận biết', 10),
+(8, 'mcq', 'Phương pháp điều chế các kim loại kiềm và kiềm thổ (Na, Ca, Mg) trong công nghiệp là:', 'Nhiệt luyện bằng CO', 'Điện phân dung dịch', 'Thủy luyện', 'Điện phân nóng chảy', 'D', 'Kim loại hoạt động mạnh (Li → Al) điều chế bằng điện phân nóng chảy.', 0.25, 'Nhận biết', 11),
+(8, 'mcq', 'Chất nào sau đây thuộc loại tơ bán tổng hợp (tơ nhân tạo)?', 'Tơ tằm', 'Tơ visco', 'Tơ nilon-6,6', 'Tơ capron', 'B', 'Tơ visco chế biến hóa học từ xenlulozơ thiên nhiên.', 0.25, 'Nhận biết', 12),
+(8, 'mcq', 'Thủy phân este X (C₄H₈O₂) trong dung dịch NaOH thu được muối natri axetat và ancol Y. Công thức của Y là:', 'C₄H₉OH', 'C₂H₅OH', 'CH₃OH', 'C₃H₇OH', 'B', 'Muối là CH₃COONa (2C) ⇒ ancol Y là C₂H₅OH.', 0.25, 'Thông hiểu', 13),
+(8, 'mcq', 'Sắp xếp các chất theo chiều tăng dần tính bazơ: (1) NH₃, (2) C₆H₅NH₂, (3) CH₃NH₂.', '(2) < (3) < (1)', '(2) < (1) < (3)', '(1) < (2) < (3)', '(3) < (1) < (2)', 'B', 'Anilin (2) < NH₃ (1) < Metylamin (3).', 0.25, 'Thông hiểu', 14),
+(8, 'mcq', 'Nhúng thanh Fe vào 200 ml dung dịch CuSO₄ 0.5M đến khi phản ứng hoàn toàn. Độ tăng khối lượng của thanh Fe là (Fe = 56, Cu = 64):', '6.4 gam', '1.6 gam', '5.6 gam', '0.8 gam', 'D', 'n_Cu²⁺ = 0.1 mol ⇒ Δm = 0.1 × (64 - 56) = 0.8 gam.', 0.25, 'Thông hiểu', 15),
+(8, 'mcq', 'Cho 3.9 gam kali (K = 39) tác dụng hết với nước dư, thu được 500 ml dung dịch KOH. Nồng độ mol của dung dịch KOH là:', '0.1 M', '0.5 M', '0.2 M', '0.4 M', 'C', 'n_KOH = n_K = 0.1 mol ⇒ C_M = 0.1 / 0.5 = 0.2 M.', 0.25, 'Thông hiểu', 16),
+(8, 'mcq', 'Cho bột Fe dư tác dụng với dung dịch HNO₃ loãng. Sau khi phản ứng hoàn toàn, muối sắt thu được trong dung dịch là:', 'Fe₂(SO₄)₃', 'Fe(NO₃)₂', 'FeCl₂', 'Fe(NO₃)₃', 'B', 'Fe dư khử Fe³⁺ về Fe²⁺.', 0.25, 'Thông hiểu', 17),
+(8, 'mcq', 'Cho 4.958 lít khí CO₂ (ở ĐKC 24.79 lít/mol) tác dụng với dung dịch KOH dư. Khối lượng muối K₂CO₃ (M = 138) thu được là:', '19.8 gam', '13.8 gam', '20.0 gam', '27.6 gam', 'D', 'n_CO₂ = 4.958/24.79 = 0.2 mol ⇒ m_K₂CO₃ = 0.2 × 138 = 27.6 gam.', 0.25, 'Thông hiểu', 18),
+(8, 'true_false', 'Cho thế điện cực chuẩn của một số cặp oxi hóa - khử: E°(Mg²⁺/Mg) = -2.37 V, E°(Fe²⁺/Fe) = -0.44 V, E°(Cu²⁺/Cu) = +0.34 V, E°(Ag⁺/Ag) = +0.80 V.', 'a) Kim loại Mg có tính khử mạnh nhất trong 4 kim loại Mg, Fe, Cu, Ag.', 'b) Ion Ag⁺ có tính oxi hóa mạnh hơn ion Cu²⁺.', 'c) Kim loại Cu khử được ion Fe²⁺ trong dung dịch muối FeSO₄.', 'd) Sức điện động chuẩn của pin điện hóa Fe-Ag là 1.24 V.', 'D,D,S,D', 'a) Đúng: E° nhỏ nhất (-2.37 V) ⇒ tính khử mạnh nhất.
+b) Đúng: E°(Ag⁺/Ag) > E°(Cu²⁺/Cu).
+c) Sai: E°(Cu²⁺/Cu) > E°(Fe²⁺/Fe) nên Cu không khử được Fe²⁺.
+d) Đúng: E°_pin = 0.80 - (-0.44) = 1.24 V.', 1.00, 'Thông hiểu', 19),
+(8, 'true_false', 'Trong dung dịch nước, các ion kim loại chuyển tiếp như Cu²⁺, Co²⁺, Fe³⁺ có khả năng tạo phức chất với các phối tử như H₂O, NH₃, Cl⁻. Khi nhỏ từ từ dung dịch NH₃ đến dư vào dung dịch CuSO₄ loãng (màu xanh nhạt), lúc đầu thấy xuất hiện kết tủa xanh nhạt, sau đó kết tủa tan dần tạo thành dung dịch màu xanh lam đậm chứa phức chất [Cu(NH₃)₄(H₂O)₂]²⁺.', 'a) Nguyên tử trung tâm trong phức chất [Cu(NH₃)₄(H₂O)₂]²⁺ là ion Cu²⁺.', 'b) Kết tủa xanh nhạt xuất hiện lúc đầu có công thức là Cu(OH)₂.', 'c) Phức chất [Cu(NH₃)₄(H₂O)₂]²⁺ có số phối trí bằng 4.', 'd) Phức chất trên mang điện tích +2.', 'D,D,S,D', 'a) Đúng.
+b) Đúng.
+c) Sai: Có 4 phối tử NH₃ và 2 phối tử H₂O nên số phối trí là 4 + 2 = 6.
+d) Đúng.', 1.00, 'Vận dụng', 20),
+(8, 'true_false', 'Este E mạch hở có công thức phân tử C₄H₆O₂. Đun nóng E trong dung dịch NaOH thu được muối natri axetat (CH₃COONa) và chất hữu cơ F có khả năng tham gia phản ứng tráng bạc.', 'a) Este E có chứa 1 liên kết đôi C=C trong phân tử.', 'b) Công thức cấu tạo của este E là CH₃COOCH=CH₂ (vinyl axetat).', 'c) Chất hữu cơ F thu được sau phản ứng là ancol etylic (C₂H₅OH).', 'd) Khi đun nóng E với H₂O có xúc tác axit, thu được sản phẩm có mùi xốc của anđehit axetic.', 'D,D,S,D', 'a) Đúng: k = (2×4+2-6)/2 = 2 (1 nhóm COO và 1 nối đôi C=C).
+b) Đúng.
+c) Sai: CH₃COOCH=CH₂ + NaOH → CH₃COONa + CH₃CHO (anđehit axetic).
+d) Đúng.', 1.00, 'Vận dụng', 21),
+(8, 'true_false', 'Cho 21.6 gam hỗn hợp X gồm Fe, FeO, Fe₂O₃ và Fe₃O₄ tác dụng hết với dung dịch H₂SO₄ đặc, nóng dư thu được 3.7185 lít khí SO₂ (sản phẩm khử duy nhất, ở ĐKC 24.79 lít/mol) và dung dịch Y chỉ chứa muối Fe₂(SO₄)₃.', 'a) Số mol khí SO₂ thu được là 0.15 mol.', 'b) Khi quy đổi hỗn hợp X thành Fe (a mol) và O (b mol), ta có phương trình bảo toàn khối lượng: 56a + 16b = 21.6.', 'c) Phương trình bảo toàn electron cho quá trình trên là 3a - 2b = 0.15.', 'd) Khối lượng kim loại sắt có trong 21.6 gam hỗn hợp X ban đầu là 16.8 gam.', 'D,D,S,D', 'a) Đúng: n_SO₂ = 3.7185 / 24.79 = 0.15 mol.
+b) Đúng.
+c) Sai: 3a = 2b + 2.n_SO₂ ⇔ 3a - 2b = 0.30.
+d) Đúng: Giải hệ 56a + 16b = 21.6 và 3a - 2b = 0.30 ⇒ a = 0.3 mol ⇒ m_Fe = 16.8 gam.', 1.00, 'Vận dụng cao', 22),
+(8, 'short_answer', 'Cho 4.5 gam etylamin (C₂H₅NH₂, M = 45) tác dụng hoàn toàn với lượng dư axit HCl. Tính khối lượng muối thu được theo đơn vị gam.', NULL, NULL, NULL, NULL, '8.15', 'n_amin = 4.5/45 = 0.1 mol ⇒ m_muối = 4.5 + 0.1 × 36.5 = 8.15 gam.', 0.25, 'Nhận biết', 23),
+(8, 'short_answer', 'Thủy phân hoàn toàn 32.4 gam tinh bột thành glucozơ (H = 75%), sau đó lên men toàn bộ glucozơ thành ancol etylic (H = 80%). Tính khối lượng ancol etylic thu được theo đơn vị gam.', NULL, NULL, NULL, NULL, '11.04', 'n_tinh bột = 0.2 mol ⇒ n_ancol = 2 × 0.2 × 0.75 × 0.80 = 0.24 mol ⇒ m = 0.24 × 46 = 11.04 gam.', 0.25, 'Thông hiểu', 24),
+(8, 'short_answer', 'Cho 2.479 lít khí CO₂ (ở ĐKC 24.79 lít/mol) hấp thụ hết vào 150 ml dung dịch NaOH 1M. Tính tổng khối lượng muối thu được trong dung dịch sau phản ứng theo đơn vị gam.', NULL, NULL, NULL, NULL, '9.5', 'n_CO₂ = 0.1 mol, n_NaOH = 0.15 mol ⇒ n_Na₂CO₃ = 0.05 mol; n_NaHCO₃ = 0.05 mol ⇒ m = 0.05×106 + 0.05×84 = 9.5 gam.', 0.25, 'Thông hiểu', 25),
+(8, 'short_answer', 'Hòa tan hết 9.6 gam Cu trong dung dịch HNO₃ đặc nóng dư thu được V lít khí NO₂ (sản phẩm khử duy nhất, ở ĐKC 24.79 lít/mol). Tính giá trị của V (làm tròn đến hàng phần trăm).', NULL, NULL, NULL, NULL, '7.44', 'n_Cu = 0.15 mol ⇒ n_NO₂ = 2×0.15 = 0.3 mol ⇒ V = 0.3 × 24.79 = 7.437 ≈ 7.44 lít.', 0.25, 'Vận dụng', 26),
+(8, 'short_answer', 'Thủy phân hoàn toàn hỗn hợp gồm 0.1 mol vinyl axetat và 0.1 mol phenyl fomat bằng lượng vừa đủ dung dịch NaOH đun nóng. Tổng số mol NaOH đã phản ứng là bao nhiêu?', NULL, NULL, NULL, NULL, '0.3', 'Vinyl axetat tỉ lệ 1:1 (0.1 mol); Phenyl fomat là este của phenol tỉ lệ 1:2 (0.2 mol) ⇒ 0.3 mol.', 0.25, 'Vận dụng', 27),
+(8, 'short_answer', 'Hỗn hợp E gồm este đơn chức X và este hai chức Y đều mạch hở. Thủy phân hoàn toàn 0.15 mol E cần vừa đủ 0.20 mol NaOH thu được hỗn hợp muối và một ancol duy nhất. Tính số mol của este hai chức Y trong 0.15 mol E.', NULL, NULL, NULL, NULL, '0.05', 'n_X + n_Y = 0.15 và n_X + 2.n_Y = 0.20 ⇒ n_Y = 0.05 mol.', 0.25, 'Vận dụng cao', 28),
 (9, 'mcq', 'Cho hàm số y = x³ - 3x² + 2. Hàm số nghịch biến trên khoảng nào dưới đây?', '(-∞; 0)', '(2; +∞)', '(-2; 0)', '(0; 2)', 'D', 'y'' = 3x² - 6x < 0 ⇔ 0 < x < 2.', 0.25, 'Nhận biết', 1),
 (9, 'mcq', 'Đường tiệm cận ngang của đồ thị hàm số y = (3x - 5)/(x + 2) là:', 'x = -2', 'y = -5/2', 'y = 3', 'y = 2', 'C', 'lim_{x→±∞} (3x - 5)/(x + 2) = 3 nên TCN là y = 3.', 0.25, 'Nhận biết', 2),
 (9, 'mcq', 'Họ nguyên hàm của hàm số f(x) = eˣ + 2x là:', 'eˣ + 2 + C', 'eˣ + 2x² + C', 'xeˣ⁻¹ + x² + C', 'eˣ + x² + C', 'D', '∫(eˣ + 2x)dx = eˣ + x² + C.', 0.25, 'Nhận biết', 3),
@@ -567,7 +507,7 @@ d) Sai: P(Thích Toán) = 0.45×0.60 + 0.55×0.40 = 0.27 + 0.22 = 0.49 (49%).', 
 (10, 'mcq', 'Số cách chọn 3 học sinh từ một nhóm gồm 10 học sinh là:', '30', '120', '720', '1000', 'B', 'C(10, 3) = 120.', 0.25, 'Nhận biết', 10),
 (10, 'mcq', 'Giá trị lớn nhất của hàm số y = -x³ + 3x + 1 trên đoạn [0; 2] là:', '5', '1', '3', '-1', 'C', 'y'' = -3x² + 3 = 0 ⇒ x = 1 ∈ [0;2]. f(0)=1, f(1)=3, f(2)=-1. Max = 3.', 0.25, 'Thông hiểu', 11),
 (10, 'mcq', 'Trong một bảng thống kê ghép nhóm gồm 40 học sinh, nhóm chứa tứ phân vị thứ nhất Q₁ là nhóm [5; 6) có tần số 10, tần số tích lũy trước đó là 6. Giá trị của Q₁ là:', '5.2', '5.6', '5.5', '5.4', 'D', 'Q₁ = 5 + ((40/4 - 6)/10)×1 = 5 + 0.4 = 5.4.', 0.25, 'Thông hiểu', 12),
-(10, 'true_false', 'Cho hàm số y = (x + 1)/(x - 1).', 'a) Tập xác định của hàm số là ℝ \\ {1}.', 'b) Đạo hàm của hàm số là y'' = -2/(x - 1)².', 'c) Hàm số đồng biến trên từng khoảng xác định.', 'd) Giao điểm hai đường tiệm cận của đồ thị hàm số là I(1; 1).', 'D,D,S,D', 'a) Đúng.
+(10, 'true_false', 'Cho hàm số y = (x + 1)/(x - 1).', 'a) Tập xác định của hàm số là ℝ \ {1}.', 'b) Đạo hàm của hàm số là y'' = -2/(x - 1)².', 'c) Hàm số đồng biến trên từng khoảng xác định.', 'd) Giao điểm hai đường tiệm cận của đồ thị hàm số là I(1; 1).', 'D,D,S,D', 'a) Đúng.
 b) Đúng: (1×(-1) - 1×1)/(x-1)² = -2/(x-1)².
 c) Sai: y'' < 0 nên hàm số nghịch biến trên từng khoảng xác định.
 d) Đúng: TCĐ x = 1, TCN y = 1 ⇒ I(1; 1).', 1.00, 'Thông hiểu', 13),
@@ -589,7 +529,7 @@ d) Đúng: P(I|T) = 0.20 / 0.55 = 4/11 (Công thức Bayes).', 1.00, 'Vận dụ
 (10, 'short_answer', 'Trong không gian Oxyz, tính khoảng cách từ gốc tọa độ O(0; 0; 0) đến mặt phẳng (P): 2x - y + 2z - 9 = 0.', NULL, NULL, NULL, NULL, '3', 'd(O,(P)) = |-9| / √(2² + (-1)² + 2²) = 9 / 3 = 3.', 0.50, 'Nhận biết', 20),
 (10, 'short_answer', 'Một chất điểm chuyển động thẳng với phương trình s(t) = t³ - 3t² + 9t + 2 (s tính bằng mét, t tính bằng giây, t ≥ 0). Tính vận tốc nhỏ nhất (theo đơn vị m/s) của chất điểm.', NULL, NULL, NULL, NULL, '6', 'v(t) = s''(t) = 3t² - 6t + 9 = 3(t - 1)² + 6 ≥ 6. Vận tốc nhỏ nhất là 6 m/s tại t = 1s.', 0.50, 'Vận dụng', 21),
 (10, 'short_answer', 'Từ một tấm tôn hình vuông cạnh 12 cm, người ta cắt bỏ ở bốn góc bốn hình vuông bằng nhau có cạnh x (cm) rồi gập lại thành một cái hộp không nắp dạng hình hộp chữ nhật. Thể tích lớn nhất của cái hộp đó là bao nhiêu cm³?', NULL, NULL, NULL, NULL, '128', 'V(x) = x(12 - 2x)² với 0 < x < 6. V''(x) = (12 - 2x)(12 - 6x) = 0 ⇔ x = 2. V_max = 2 × 8² = 128 cm³.', 0.50, 'Vận dụng cao', 22),
-(11, 'mcq', 'Hàm số y = (2x - 1)/(x + 1) đồng biến trên khoảng nào sau đây?', '(-∞; +∞)', 'ℝ \\ {-1}', '(-∞; -1)', '(-2; 0)', 'C', 'y'' = 3/(x+1)² > 0 với mọi x ≠ -1, nên hàm số đồng biến trên (-∞; -1) và (-1; +∞) (chú ý không kết luận trên ℝ \\ {-1}).', 0.25, 'Thông hiểu', 1),
+(11, 'mcq', 'Hàm số y = (2x - 1)/(x + 1) đồng biến trên khoảng nào sau đây?', '(-∞; +∞)', 'ℝ \ {-1}', '(-∞; -1)', '(-2; 0)', 'C', 'y'' = 3/(x+1)² > 0 với mọi x ≠ -1, nên hàm số đồng biến trên (-∞; -1) và (-1; +∞) (chú ý không kết luận trên ℝ \ {-1}).', 0.25, 'Thông hiểu', 1),
 (11, 'mcq', 'Tiệm cận đứng của đồ thị hàm số y = (x + 2)/(2x - 4) là đường thẳng:', 'x = -2', 'x = 2', 'y = 1/2', 'x = 4', 'B', '2x - 4 = 0 ⇔ x = 2.', 0.25, 'Nhận biết', 2),
 (11, 'mcq', 'Họ nguyên hàm của hàm số f(x) = 1/x + 3x² (với x > 0) là:', 'ln(x) + x³ + C', 'ln|x| + 3x³ + C', '-1/x² + x³ + C', 'ln(x) + 6x + C', 'A', '∫(1/x + 3x²)dx = ln(x) + x³ + C (vì x > 0).', 0.25, 'Nhận biết', 3),
 (11, 'mcq', 'Nghiệm của phương trình log₃(2x - 1) = 2 là:', 'x = 4', 'x = 5', 'x = 4.5', 'x = 3.5', 'B', '2x - 1 = 3² = 9 ⇔ x = 5.', 0.25, 'Nhận biết', 4),
@@ -620,7 +560,9 @@ d) Sai: n/2 = 20, tần số tích lũy đến [6;8) là 8+20=28 ≥ 20 nên nh�
 (11, 'short_answer', 'Tính giá trị tích phân I = ∫₁² (4x³ - 2x) dx.', NULL, NULL, NULL, NULL, '12', 'I = [x⁴ - x²]₁² = (16 - 4) - (1 - 1) = 12.', 0.50, 'Thông hiểu', 17),
 (11, 'short_answer', 'Tính tổng tất cả các nghiệm của phương trình 2^(x² - 3x) = 4.', NULL, NULL, NULL, NULL, '3', 'PT ⇔ x² - 3x = 2 ⇔ x² - 3x - 2 = 0. Theo Vi-et, x₁ + x₂ = 3.', 0.50, 'Thông hiểu', 18),
 (11, 'short_answer', 'Trong không gian Oxyz, tính độ dài đoạn thẳng AB biết A(2; -1; 3) và B(-2; 2; 3).', NULL, NULL, NULL, NULL, '5', 'AB = (-4; 3; 0) ⇒ |AB| = √((-4)² + 3² + 0²) = 5.', 0.50, 'Nhận biết', 19),
-(11, 'short_answer', 'Một hình trụ có bán kính đáy r = 2 và chiều cao h = 5. Thể tích của khối trụ đó bằng kπ. Tìm giá trị của k.', NULL, NULL, NULL, NULL, '20', 'V = πr²h = π × 2² × 5 = 20π ⇒ k = 20.', 0.50, 'Nhận biết', 20),
+(11, 'short_answer', 'Một hình trụ có bán kính đáy r = 2 và chiều cao h = 5. Thể tích của khối trụ đó bằng kπ. Tìm giá trị của k.', NULL, NULL, NULL, NULL, '20', 'V = πr²h = π × 2² × 5 = 20π ⇒ k = 20.', 0.50, 'Nhận biết', 20);
+
+INSERT INTO questions (exam_id, question_type, question_text, option_a, option_b, option_c, option_d, correct_option, explanation, points_value, difficulty, sort_order) VALUES
 (11, 'short_answer', 'Tìm hoành độ điểm cực tiểu của hàm số y = (x² + 3)/(x + 1).', NULL, NULL, NULL, NULL, '1', 'y'' = (x² + 2x - 3)/(x+1)² = 0 ⇔ x = -3 (CĐ) hoặc x = 1 (CT). Vậy hoành độ điểm cực tiểu là 1.', 0.50, 'Vận dụng', 21),
 (11, 'short_answer', 'Một xạ thủ bắn 2 phát đạn độc lập vào bia. Biết xác suất bắn trúng bia ở mỗi phát là 0.7. Tính xác suất để xạ thủ bắn trúng bia ít nhất 1 phát.', NULL, NULL, NULL, NULL, '0.91', 'P = 1 - P(cả 2 phát đều trượt) = 1 - 0.3 × 0.3 = 0.91.', 0.50, 'Vận dụng', 22),
 (12, 'mcq', 'Choose the word whose underlined part differs from the other three in pronunciation: A. clean(ed)  B. play(ed)  C. watch(ed)  D. stay(ed)', 'stayed', 'played', 'watched', 'cleaned', 'C', '''-ed'' sau âm vô thanh /tʃ/ (watch) phát âm là /t/; các từ còn lại phát âm là /d/.', 0.25, 'Nhận biết', 1),
@@ -720,7 +662,9 @@ d) Sai: n/2 = 20, tần số tích lũy đến [6;8) là 8+20=28 ≥ 20 nên nh�
 (14, 'mcq', '______ the traffic jam, we arrived at the airport on time.', 'Because', 'In spite of', 'Although', 'Even though', 'B', '''In spite of + cụm danh từ (the traffic jam)''.', 0.25, 'Thông hiểu', 15),
 (14, 'mcq', 'Rarely ______ such a breathtaking sunset.', 'did I saw', 'have I seen', 'I saw', 'I have seen', 'B', 'Đảo ngữ với ''Rarely'' đứng đầu câu: Rarely + trợ động từ + S + V.', 0.25, 'Vận dụng', 16),
 (14, 'mcq', 'Mark the word CLOSEST in meaning to ''assist'': Nurses assist doctors in taking care of patients.', 'help', 'ignore', 'criticize', 'prevent', 'A', '''assist'' = hỗ trợ, giúp đỡ = ''help''.', 0.25, 'Nhận biết', 17),
-(14, 'mcq', 'Mark the word OPPOSITE in meaning to ''optimistic'': She remains optimistic about the future.', 'confident', 'pessimistic', 'hopeful', 'cheerful', 'B', 'Trái nghĩa với ''optimistic'' (lạc quan) là ''pessimistic'' (bi quan).', 0.25, 'Thông hiểu', 18),
+(14, 'mcq', 'Mark the word OPPOSITE in meaning to ''optimistic'': She remains optimistic about the future.', 'confident', 'pessimistic', 'hopeful', 'cheerful', 'B', 'Trái nghĩa với ''optimistic'' (lạc quan) là ''pessimistic'' (bi quan).', 0.25, 'Thông hiểu', 18);
+
+INSERT INTO questions (exam_id, question_type, question_text, option_a, option_b, option_c, option_d, correct_option, explanation, points_value, difficulty, sort_order) VALUES
 (14, 'mcq', 'Find the mistake: ''The number of participants in the contest (A) have (B) increased significantly (C) this year (D).''', 'significantly', 'this year', 'have', 'participants', 'C', '''The number of + N(số nhiều)'' chia động từ số ít → ''has''.', 0.25, 'Vận dụng', 19),
 (14, 'mcq', 'Find the mistake: ''She enjoys (A) to read (B) science fiction novels in her (C) free time (D).''', 'to read', 'free time', 'her', 'enjoys', 'A', '''enjoy + V-ing'' → ''reading''.', 0.25, 'Nhận biết', 20),
 (14, 'mcq', 'Peter: ''What a lovely dress you are wearing!'' — Lisa: ''______''', 'Thank you. That''s very nice of you to say so.', 'Yes, please.', 'Not at all.', 'I don''t think so.', 'A', 'Đáp lại lời khen lịch sự: cảm ơn người khen.', 0.25, 'Nhận biết', 21),
@@ -856,7 +800,9 @@ d) Sai: E = E₀/√2 = 5π√2 V.', 1.00, 'Vận dụng', 21),
 (17, 'true_false', 'Cho phản ứng phân hạch: ¹₀n + ²³⁵₉₂U → ¹⁴¹₅₆Ba + ⁹²₃₆Kr + k ¹₀n.', 'a) Hệ số k trong phương trình phản ứng bằng 3.', 'b) Đây là phản ứng hạt nhân thu năng lượng.', 'c) Tổng số khối của các hạt trước và sau phản ứng được bảo toàn.', 'd) Phản ứng phân hạch dây chuyền có kiểm soát được ứng dụng trong các nhà máy điện hạt nhân.', 'D,S,D,D', 'a) Đúng: 1 + 235 = 141 + 92 + k ⇒ k = 3.
 b) Sai: Phân hạch hạt nhân nặng là phản ứng tỏa năng lượng.
 c) Đúng.
-d) Đúng.', 1.00, 'Thông hiểu', 22),
+d) Đúng.', 1.00, 'Thông hiểu', 22);
+
+INSERT INTO questions (exam_id, question_type, question_text, option_a, option_b, option_c, option_d, correct_option, explanation, points_value, difficulty, sort_order) VALUES
 (17, 'short_answer', 'Một bình kín thể tích 0.02 m³ chứa 1 mol khí lí tưởng ở nhiệt độ 127°C (400 K). Lấy R = 8.31 J/(mol.K). Tính áp suất khí trong bình theo đơn vị kPa.', NULL, NULL, NULL, NULL, '166.2', 'p = nRT/V = (1 × 8.31 × 400)/0.02 = 166200 Pa = 166.2 kPa.', 0.25, 'Thông hiểu', 23),
 (17, 'short_answer', 'Biết nhiệt nóng chảy riêng của chì ở nhiệt độ nóng chảy là 25 kJ/kg. Tính nhiệt lượng (theo đơn vị kJ) cần cung cấp để làm nóng chảy hoàn toàn 2 kg chì ở nhiệt độ nóng chảy.', NULL, NULL, NULL, NULL, '50', 'Q = λ.m = 25 × 2 = 50 kJ.', 0.25, 'Nhận biết', 24),
 (17, 'short_answer', 'Một người quan sát mặt hồ thấy 5 ngọn sóng liên tiếp đi qua trước mặt trong khoảng cách 2 m và tần số sóng là 20 Hz. Tính tốc độ truyền sóng trên mặt nước (theo đơn vị m/s).', NULL, NULL, NULL, NULL, '10', '5 ngọn sóng liên tiếp cách nhau 4λ = 2 m ⇒ λ = 0.5 m ⇒ v = λf = 0.5 × 20 = 10 m/s.', 0.25, 'Thông hiểu', 25),
@@ -983,3 +929,23 @@ d) Đúng: n_Fe phản ứng = 0.20 mol ⇒ Fe dư = 0.04 mol (2.24 g); m_Ag = 0
 (20, 'short_answer', 'Cho thế điện cực chuẩn E°(Mg²⁺/Mg) = -2.37 V và E°(Ag⁺/Ag) = +0.80 V. Tính sức điện động chuẩn của pin điện hóa Mg - Ag theo đơn vị Volt.', NULL, NULL, NULL, NULL, '3.17', 'E°_pin = E°(Ag⁺/Ag) - E°(Mg²⁺/Mg) = 0.80 - (-2.37) = 3.17 V.', 0.25, 'Thông hiểu', 26),
 (20, 'short_answer', 'Đốt cháy hoàn toàn 0.1 mol tripeptit mạch hở Ala-Ala-Ala thu được bao nhiêu mol khí N₂?', NULL, NULL, NULL, NULL, '0.15', 'Tripeptit có 3 nguyên tử N ⇒ n_N₂ = (0.1 × 3)/2 = 0.15 mol.', 0.25, 'Thông hiểu', 27),
 (20, 'short_answer', 'Điện phân dung dịch CuSO₄ với điện cực trơ, cường độ dòng điện không đổi I = 9.65 A trong thời gian 2000 giây (lấy F = 96500 C/mol). Khối lượng đồng (Cu = 64) bám vào catot là bao nhiêu gam?', NULL, NULL, NULL, NULL, '6.4', 'n_e = I.t/F = (9.65 × 2000)/96500 = 0.2 mol ⇒ n_Cu = 0.1 mol ⇒ m_Cu = 6.4 gam.', 0.25, 'Vận dụng', 28);
+
+
+SELECT setval(pg_get_serial_sequence('users', 'id'), COALESCE((SELECT MAX(id) FROM users), 1));
+SELECT setval(pg_get_serial_sequence('subjects', 'id'), COALESCE((SELECT MAX(id) FROM subjects), 1));
+SELECT setval(pg_get_serial_sequence('exams', 'id'), COALESCE((SELECT MAX(id) FROM exams), 1));
+SELECT setval(pg_get_serial_sequence('questions', 'id'), COALESCE((SELECT MAX(id) FROM questions), 1));
+
+INSERT INTO exam_attempts (user_id, exam_id, score, correct_count, total_questions, time_spent_seconds, tab_switch_count, completed_at) VALUES
+(2, 1, 8.75, 19, 22, 4620, 0, NOW() - INTERVAL '2 days'),
+(2, 3, 8.75, 35, 40, 2940, 1, NOW() - INTERVAL '1 day'),
+(3, 5, 8.50, 24, 28, 2580, 0, NOW() - INTERVAL '5 hours'),
+(2, 7, 9.00, 25, 28, 2410, 2, NOW() - INTERVAL '2 hours');
+
+ALTER TABLE users DISABLE ROW LEVEL SECURITY;
+ALTER TABLE subjects DISABLE ROW LEVEL SECURITY;
+ALTER TABLE exams DISABLE ROW LEVEL SECURITY;
+ALTER TABLE questions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE exam_attempts DISABLE ROW LEVEL SECURITY;
+ALTER TABLE attempt_answers DISABLE ROW LEVEL SECURITY;
+ALTER TABLE exam_sessions DISABLE ROW LEVEL SECURITY;
