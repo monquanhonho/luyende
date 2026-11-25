@@ -1,0 +1,19 @@
+/* EduSmart Luyện Đề - Custom Stylesheet */
+body {
+    font-family: 'Be Vietnam Pro', sans-serif;
+    background-color: #f8fafc;
+}
+
+.glass-nav {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(12px);
+}
+
+.card-hover {
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+}

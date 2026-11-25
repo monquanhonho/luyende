@@ -17,34 +17,9 @@ $currentPage = basename($_SERVER['PHP_SELF']);
     <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
     <!-- Font Awesome 6 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['"Be Vietnam Pro"', 'sans-serif'],
-                    }
-                }
-            }
-        }
-    </script>
-    <style>
-        body {
-            font-family: 'Be Vietnam Pro', sans-serif;
-            background-color: #f8fafc;
-        }
-        .glass-nav {
-            background: rgba(255, 255, 255, 0.92);
-            backdrop-filter: blur(12px);
-        }
-        .card-hover {
-            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        .card-hover:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
-        }
-    </style>
+    <!-- Custom CSS & JS (tách riêng 1 file CSS + 1 file JS) -->
+    <link rel="stylesheet" href="assets/css/style.css">
+    <script src="assets/js/main.js"></script>
 </head>
 <body class="min-h-screen flex flex-col text-slate-800">
 
@@ -65,7 +40,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 
                 <!-- Menu chính -->
                 <nav class="hidden md:flex items-center gap-1">
-                    <a href="index.php" class="px-4 py-2 rounded-xl text-sm font-semibold transition flex items-center gap-2 <?= ($currentPage === 'index.php' && empty($_GET['subject'])) ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-100' ?>">
+                    <a href="index.html" class="px-4 py-2 rounded-xl text-sm font-semibold transition flex items-center gap-2 <?= (in_array($currentPage, ['index.php', 'index.html'], true) && empty($_GET['subject'])) ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-100' ?>">
                         <i class="fa-solid fa-compass"></i> Kho Đề Thi
                     </a>
                     <a href="index.php?subject=TOAN" class="px-3.5 py-2 rounded-xl text-sm font-semibold transition flex items-center gap-1.5 <?= (($_GET['subject'] ?? '') === 'TOAN') ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100' ?>">

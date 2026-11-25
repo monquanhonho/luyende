@@ -28,7 +28,7 @@ try {
 
     $pdo->exec("USE `$db_name`");
 
-    // Tự động nâng cấp nếu DB đang ở phiên bản cũ (chưa có cột `question_type` chuẩn form 2025)
+    // Tự động nâng cấp nếu DB đang ở phiên bản cũ (chưa có cột `question_type` chuẩn form 2026)
     $colCheck = $pdo->query("SHOW COLUMNS FROM `questions` LIKE 'question_type'");
     if (!$colCheck->fetch() && file_exists($sqlFile)) {
         $pdo->exec(file_get_contents($sqlFile));
@@ -197,7 +197,7 @@ function getQuestionTypeInfo(string $type): array {
         'true_false' => [
             'label' => 'Phần II: Trắc nghiệm Đúng / Sai (4 ý a, b, c, d)',
             'short' => 'Đúng / Sai',
-            'desc' => 'Thang điểm lũy tiến Bộ GD&ĐT 2025: Đúng 1 ý được 0.10đ • 2 ý: 0.25đ • 3 ý: 0.50đ • cả 4 ý: 1.00đ.',
+            'desc' => 'Thang điểm lũy tiến Bộ GD&ĐT 2026: Đúng 1 ý được 0.10đ • 2 ý: 0.25đ • 3 ý: 0.50đ • cả 4 ý: 1.00đ.',
             'pill' => 'bg-violet-50 text-violet-800 border-violet-200',
             'bar' => 'bg-violet-600',
             'icon' => 'fa-check-double',
@@ -215,7 +215,7 @@ function getQuestionTypeInfo(string $type): array {
 }
 
 /**
- * Chấm điểm một câu hỏi theo chuẩn Bộ GD&ĐT từ năm 2025
+ * Chấm điểm một câu hỏi theo chuẩn Bộ GD&ĐT từ năm 2026
  */
 function gradeQuestion(array $q, $rawAnswer): array {
     $type = $q['question_type'] ?? 'mcq';

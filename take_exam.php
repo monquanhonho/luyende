@@ -32,7 +32,7 @@ if (empty($questions)) {
     exit;
 }
 
-// Xử lý khi Học sinh nộp bài (Chấm theo thang điểm chuẩn THPT Quốc Gia 2025)
+// Xử lý khi Học sinh nộp bài (Chấm theo thang điểm chuẩn THPT Quốc Gia 2026)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_exam'])) {
     $userAnswers = $_POST['answers'] ?? [];
     $timeSpent = max(1, (int)($_POST['time_spent_seconds'] ?? 60));
@@ -183,7 +183,7 @@ require_once __DIR__ . '/includes/header.php';
         <input type="hidden" name="tab_switch_count" id="tabSwitchInput" value="0">
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            <!-- Cột trái: Danh sách câu hỏi theo 3 dạng Form 2025 (8 cột) -->
+            <!-- Cột trái: Danh sách câu hỏi theo 3 dạng Form 2026 (8 cột) -->
             <div class="lg:col-span-8 space-y-5">
                 <?php
                 $hasMultiType = false;
@@ -384,7 +384,7 @@ require_once __DIR__ . '/includes/header.php';
                     <!-- Bộ lọc nhanh phiếu trả lời -->
                     <div class="mb-3">
                         <div class="flex items-center justify-between text-xs font-bold text-slate-500 mb-2">
-                            <span>Phiếu trả lời Form 2025</span>
+                            <span>Phiếu trả lời Form 2026</span>
                             <span id="flaggedCountBadge" class="text-amber-600 font-bold hidden">0 đánh dấu</span>
                         </div>
                         <div class="grid grid-cols-3 gap-1.5 bg-slate-100 p-1 rounded-xl text-[11px] font-bold mb-2.5">
@@ -427,7 +427,7 @@ require_once __DIR__ . '/includes/header.php';
                     <!-- Nút Nộp bài -->
                     <button type="button" onclick="confirmSubmitExam()"
                             class="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-extrabold text-sm shadow-lg shadow-indigo-500/25 transition flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-paper-plane"></i> NỘP BÀI & CHẤM ĐIỂM 2025
+                        <i class="fa-solid fa-paper-plane"></i> NỘP BÀI & CHẤM ĐIỂM 2026
                     </button>
                 </div>
             </div>
@@ -436,304 +436,11 @@ require_once __DIR__ . '/includes/header.php';
 </div>
 
 <script>
-const totalQuestions = <?= count($questions) ?>;
-const totalSeconds = <?= (int)$exam['duration_minutes'] * 60 ?>;
-let remainingSeconds = totalSeconds;
-let elapsedSeconds = 0;
-
-// Lưu trạng thái từng câu: { label: 'A' | '4/4' | '✓', done: true/false }
-const answeredState = {};
-const tfSubAnswers = {}; // { qNum: { a:'D', b:'S', ... } }
-const flaggedMap = {};
-let currentPaletteFilter = 'all';
-
-function renderPaletteButton(qNum) {
-    const btn = document.getElementById('palette-btn-' + qNum);
-    const st = answeredState[qNum];
-    const isDone = st && st.done;
-    const isPartial = st && !st.done && st.label;
-    const isFlagged = !!flaggedMap[qNum];
-
-    btn.textContent = (st && st.label) ? (qNum + '.' + st.label) : String(qNum);
-
-    if (isFlagged && isDone) {
-        btn.className = 'palette-item h-9 rounded-xl border-2 border-amber-400 bg-indigo-600 text-white font-extrabold text-[11px] transition flex items-center justify-center shadow-sm ring-2 ring-amber-300/60';
-    } else if (isFlagged) {
-        btn.className = 'palette-item h-9 rounded-xl border-2 border-amber-400 bg-amber-100 text-amber-900 font-extrabold text-[11px] transition flex items-center justify-center';
-    } else if (isDone) {
-        btn.className = 'palette-item h-9 rounded-xl border-2 border-indigo-600 bg-indigo-600 text-white font-extrabold text-[11px] transition flex items-center justify-center shadow-sm';
-    } else if (isPartial) {
-        btn.className = 'palette-item h-9 rounded-xl border-2 border-violet-400 bg-violet-50 text-violet-800 font-extrabold text-[11px] transition flex items-center justify-center';
-    } else {
-        btn.className = 'palette-item h-9 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-extrabold text-[11px] hover:border-indigo-400 transition flex items-center justify-center';
-    }
-}
-
-function updateOverallProgress() {
-    let doneCount = 0;
-    Object.values(answeredState).forEach(st => {
-        if (st && st.done) doneCount++;
-    });
-    document.getElementById('answeredCount').textContent = doneCount;
-    const percent = Math.round((doneCount / totalQuestions) * 100);
-    document.getElementById('progressBar').style.width = percent + '%';
-}
-
-function applyPaletteFilter() {
-    document.querySelectorAll('.palette-item').forEach(btn => {
-        const qNum = btn.getAttribute('data-qnum');
-        const st = answeredState[qNum];
-        const isDone = st && st.done;
-        const isFlagged = !!flaggedMap[qNum];
-
-        let show = true;
-        if (currentPaletteFilter === 'unanswered') show = !isDone;
-        if (currentPaletteFilter === 'flagged') show = isFlagged;
-
-        btn.style.display = show ? 'flex' : 'none';
-    });
-}
-
-function filterPalette(type) {
-    currentPaletteFilter = type;
-    ['all', 'unanswered', 'flagged'].forEach(t => {
-        const b = document.getElementById('filter-btn-' + t);
-        if (t === type) {
-            b.className = 'py-1.5 rounded-lg bg-white text-indigo-700 shadow-sm transition';
-        } else {
-            b.className = 'py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition';
-        }
-    });
-    applyPaletteFilter();
-}
-
-function toggleFlag(qNum) {
-    flaggedMap[qNum] = !flaggedMap[qNum];
-    const flagBtn = document.getElementById('flag-btn-' + qNum);
-    if (flaggedMap[qNum]) {
-        flagBtn.className = 'px-2.5 py-1 rounded-lg text-[11px] font-extrabold border border-amber-400 bg-amber-100 text-amber-800 transition flex items-center gap-1';
-        flagBtn.innerHTML = '<i class="fa-solid fa-flag"></i> Đã đánh dấu';
-    } else {
-        flagBtn.className = 'px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 text-slate-500 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-300 transition flex items-center gap-1';
-        flagBtn.innerHTML = '<i class="fa-regular fa-flag"></i> Xem lại';
-    }
-
-    const flaggedTotal = Object.values(flaggedMap).filter(Boolean).length;
-    const badge = document.getElementById('flaggedCountBadge');
-    if (flaggedTotal > 0) {
-        badge.textContent = flaggedTotal + ' đánh dấu';
-        badge.classList.remove('hidden');
-    } else {
-        badge.classList.add('hidden');
-    }
-
-    renderPaletteButton(qNum);
-    applyPaletteFilter();
-}
-
-// 1. Xử lý câu MCQ ABCD
-function handleSelectMcq(qNum, letter, radioInput) {
-    answeredState[qNum] = { label: letter, done: true };
-
-    const block = document.getElementById('question-block-' + qNum);
-    block.querySelectorAll('.option-card').forEach(card => {
-        card.classList.remove('border-indigo-600', 'bg-indigo-50/80', 'ring-2', 'ring-indigo-500/20');
-        card.classList.add('border-slate-200/80');
-        const badge = card.querySelector('.option-letter');
-        badge.classList.remove('bg-indigo-600', 'text-white');
-        badge.classList.add('bg-slate-100', 'text-slate-700');
-    });
-
-    const activeCard = radioInput.closest('.option-card');
-    activeCard.classList.remove('border-slate-200/80');
-    activeCard.classList.add('border-indigo-600', 'bg-indigo-50/80', 'ring-2', 'ring-indigo-500/20');
-    const activeBadge = activeCard.querySelector('.option-letter');
-    activeBadge.classList.remove('bg-slate-100', 'text-slate-700');
-    activeBadge.classList.add('bg-indigo-600', 'text-white');
-
-    const statusBadge = document.getElementById('status-badge-' + qNum);
-    statusBadge.textContent = 'Đã chọn ' + letter;
-    statusBadge.className = 'px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-100 text-emerald-700';
-
-    renderPaletteButton(qNum);
-    applyPaletteFilter();
-    updateOverallProgress();
-}
-
-// 2. Xử lý câu Đúng / Sai 4 ý
-function handleSelectTrueFalse(qNum, subKey, val, radioInput) {
-    if (!tfSubAnswers[qNum]) tfSubAnswers[qNum] = {};
-    tfSubAnswers[qNum][subKey] = val;
-
-    // Đổi màu pill trong cùng dòng ý
-    const row = radioInput.closest('.flex');
-    row.querySelectorAll('.tf-label').forEach(lbl => {
-        lbl.className = 'tf-label inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border-2 border-slate-200 bg-white text-slate-600 text-xs font-extrabold hover:border-slate-300 transition';
-    });
-    const activeLbl = radioInput.closest('.tf-pill').querySelector('.tf-label');
-    if (val === 'D') {
-        activeLbl.className = 'tf-label inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border-2 border-emerald-600 bg-emerald-600 text-white text-xs font-extrabold shadow-sm transition';
-    } else {
-        activeLbl.className = 'tf-label inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border-2 border-rose-600 bg-rose-600 text-white text-xs font-extrabold shadow-sm transition';
-    }
-
-    const countDone = Object.keys(tfSubAnswers[qNum]).length;
-    const isFull = (countDone === 4);
-    answeredState[qNum] = { label: countDone + '/4', done: isFull };
-
-    const statusBadge = document.getElementById('status-badge-' + qNum);
-    if (isFull) {
-        statusBadge.textContent = 'Đủ 4/4 ý';
-        statusBadge.className = 'px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-100 text-emerald-700';
-    } else {
-        statusBadge.textContent = 'Đã chọn ' + countDone + '/4 ý';
-        statusBadge.className = 'px-2.5 py-1 rounded-lg text-[11px] font-bold bg-violet-100 text-violet-700';
-    }
-
-    renderPaletteButton(qNum);
-    applyPaletteFilter();
-    updateOverallProgress();
-}
-
-// 3. Xử lý câu Trả lời ngắn
-function handleShortAnswer(qNum, value) {
-    const trimmed = value.trim();
-    const hasVal = trimmed.length > 0;
-    answeredState[qNum] = hasVal ? { label: '✓', done: true } : { label: '', done: false };
-
-    const statusBadge = document.getElementById('status-badge-' + qNum);
-    if (hasVal) {
-        statusBadge.textContent = 'Đã điền: ' + trimmed;
-        statusBadge.className = 'px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-100 text-emerald-700';
-    } else {
-        statusBadge.textContent = 'Chưa làm';
-        statusBadge.className = 'px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-500';
-    }
-
-    renderPaletteButton(qNum);
-    applyPaletteFilter();
-    updateOverallProgress();
-}
-
-function scrollToQuestion(qNum) {
-    const el = document.getElementById('question-block-' + qNum);
-    if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-}
-
-const examSessionId = <?= $examSessionId ?>;
-let tabSwitchCount = 0;
-let lastExitTimestamp = 0;
-let isConfirmingDialog = false;
-let isSubmittingExam = false;
-
-function getDoneCount() {
-    let doneCount = 0;
-    Object.values(answeredState).forEach(st => {
-        if (st && st.done) doneCount++;
-    });
-    return doneCount;
-}
-
-function sendHeartbeat() {
-    if (isSubmittingExam || examSessionId <= 0) return;
-    fetch('exam_heartbeat.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            session_id: examSessionId,
-            elapsed_seconds: elapsedSeconds,
-            answered_count: getDoneCount(),
-            tab_switch_count: tabSwitchCount
-        })
-    }).catch(() => {});
-}
-
-function recordScreenExit() {
-    if (isConfirmingDialog || isSubmittingExam) return;
-    const now = Date.now();
-    if (now - lastExitTimestamp < 1200) return; // Chống đếm trùng khi blur + visibilitychange cùng lúc
-    lastExitTimestamp = now;
-
-    tabSwitchCount++;
-    document.getElementById('tabSwitchInput').value = tabSwitchCount;
-    document.getElementById('tabSwitchBadgeCount').textContent = tabSwitchCount;
-
-    const badge = document.getElementById('proctorBadge');
-    badge.className = 'px-3 py-2 rounded-xl bg-rose-50 text-rose-700 border border-rose-300 text-xs font-extrabold flex items-center gap-1.5 animate-pulse';
-
-    const banner = document.getElementById('proctorAlertBanner');
-    document.getElementById('proctorAlertText').textContent =
-        'Cảnh báo giám sát: Bạn vừa thoát khỏi màn hình làm bài (Lần thứ ' + tabSwitchCount + '). Thông tin này đã được ghi nhận!';
-    banner.classList.remove('hidden');
-
-    sendHeartbeat();
-}
-
-document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-        recordScreenExit();
-    }
-});
-
-window.addEventListener('blur', () => {
-    recordScreenExit();
-});
-
-function confirmExitExam() {
-    isConfirmingDialog = true;
-    const ok = confirm('Bạn có chắc muốn thoát khỏi phòng thi? Kết quả chưa nộp sẽ không được lưu.');
-    setTimeout(() => { isConfirmingDialog = false; }, 300);
-    return ok;
-}
-
-function confirmSubmitExam() {
-    isConfirmingDialog = true;
-    const unanswered = totalQuestions - getDoneCount();
-    let msg = 'Bạn có chắc chắn muốn nộp bài và chấm điểm ngay?';
-    if (unanswered > 0) {
-        msg = 'Bạn còn ' + unanswered + ' câu hỏi chưa hoàn thành đầy đủ. Bạn vẫn muốn nộp bài chứ?';
-    }
-    const ok = confirm(msg);
-    setTimeout(() => { isConfirmingDialog = false; }, 300);
-    if (ok) {
-        isSubmittingExam = true;
-        document.getElementById('timeSpentInput').value = Math.max(1, elapsedSeconds);
-        document.getElementById('tabSwitchInput').value = tabSwitchCount;
-        document.getElementById('examForm').submit();
-    }
-}
-
-// Gửi tín hiệu hoạt động định kỳ mỗi 10 giây
-sendHeartbeat();
-setInterval(sendHeartbeat, 10000);
-
-// Bộ đếm thời gian làm bài
-const timerEl = document.getElementById('countdownTimer');
-const timerInterval = setInterval(() => {
-    elapsedSeconds++;
-    remainingSeconds--;
-    document.getElementById('timeSpentInput').value = elapsedSeconds;
-
-    if (remainingSeconds <= 0) {
-        clearInterval(timerInterval);
-        isConfirmingDialog = true;
-        isSubmittingExam = true;
-        alert('Đã hết thời gian làm bài! Hệ thống sẽ tự động nộp bài của bạn.');
-        document.getElementById('examForm').submit();
-        return;
-    }
-
-    const mins = Math.floor(remainingSeconds / 60);
-    const secs = remainingSeconds % 60;
-    timerEl.textContent = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
-
-    if (remainingSeconds <= 300) {
-        timerEl.classList.remove('text-amber-300');
-        timerEl.classList.add('text-rose-400', 'animate-pulse');
-    }
-}, 1000);
+window.EXAM_CONFIG = {
+    totalQuestions: <?= count($questions) ?>,
+    totalSeconds: <?= (int)$exam['duration_minutes'] * 60 ?>,
+    examSessionId: <?= $examSessionId ?>
+};
 </script>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

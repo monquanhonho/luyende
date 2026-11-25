@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    // 3. Thêm câu hỏi chuẩn Form 2025 vào đề (mcq / true_false / short_answer)
+    // 3. Thêm câu hỏi chuẩn Form 2026 vào đề (mcq / true_false / short_answer)
     if ($action === 'add_question') {
         $examId = (int)($_POST['exam_id'] ?? 0);
         $questionType = $_POST['question_type'] ?? 'mcq';
@@ -87,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             $stmt->execute([$examId, $questionType, $questionText, $optA, $optB, $optC, $optD, $correct, $explanation, $pointsValue, $difficulty]);
-            $_SESSION['flash_success'] = 'Đã thêm câu hỏi chuẩn 2025 mới vào đề thi!';
+            $_SESSION['flash_success'] = 'Đã thêm câu hỏi chuẩn 2026 mới vào đề thi!';
             header('Location: admin.php?tab=questions&exam_id=' . $examId);
             exit;
         }
@@ -323,7 +323,7 @@ require_once __DIR__ . '/includes/header.php';
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
-                            <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Dạng câu hỏi 2025 *</label>
+                            <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Dạng câu hỏi 2026 *</label>
                             <select name="question_type" id="adminQType" onchange="toggleAdminQuestionFields()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-indigo-700 bg-indigo-50 outline-none">
                                 <option value="mcq">Phần I: TN 4 phương án</option>
                                 <option value="true_false">Phần II: Đúng / Sai (4 ý)</option>
@@ -428,28 +428,6 @@ require_once __DIR__ . '/includes/header.php';
                         <i class="fa-solid fa-plus mr-1"></i> Thêm câu hỏi vào đề
                     </button>
                 </form>
-
-                <script>
-                function toggleAdminQuestionFields() {
-                    const type = document.getElementById('adminQType').value;
-                    const mcqBox = document.getElementById('adminMcqFields');
-                    const tfBox = document.getElementById('adminTfFields');
-                    const saBox = document.getElementById('adminSaFields');
-                    const ptsSel = document.getElementById('adminQPoints');
-
-                    mcqBox.classList.toggle('hidden', type !== 'mcq');
-                    tfBox.classList.toggle('hidden', type !== 'true_false');
-                    saBox.classList.toggle('hidden', type !== 'short_answer');
-
-                    document.querySelectorAll('.mcq-req').forEach(el => el.required = (type === 'mcq'));
-                    document.querySelectorAll('.tf-req').forEach(el => el.required = (type === 'true_false'));
-                    document.querySelectorAll('.sa-req').forEach(el => el.required = (type === 'short_answer'));
-
-                    if (type === 'true_false') ptsSel.value = '1.00';
-                    else if (type === 'mcq') ptsSel.value = '0.25';
-                    else ptsSel.value = '0.50';
-                }
-                </script>
             </div>
 
             <!-- Danh sách câu hỏi của đề đang chọn -->
@@ -848,27 +826,6 @@ require_once __DIR__ . '/includes/header.php';
                 </div>
             </div>
         </div>
-
-        <script>
-        let monitorAutoRefresh = true;
-        const monitorTimer = setInterval(() => {
-            if (monitorAutoRefresh) {
-                window.location.reload();
-            }
-        }, 10000);
-
-        function toggleMonitorAutoRefresh() {
-            monitorAutoRefresh = !monitorAutoRefresh;
-            const btn = document.getElementById('toggleAutoRefreshBtn');
-            if (monitorAutoRefresh) {
-                btn.innerHTML = '<i class="fa-solid fa-pause mr-1"></i> Tạm dừng tự động';
-                btn.className = 'px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition';
-            } else {
-                btn.innerHTML = '<i class="fa-solid fa-play mr-1"></i> Tiếp tục tự động';
-                btn.className = 'px-3.5 py-2 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-xs font-bold transition';
-            }
-        }
-        </script>
     <?php endif; ?>
 </div>
 

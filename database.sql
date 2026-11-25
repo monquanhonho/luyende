@@ -128,23 +128,23 @@ INSERT INTO `users` (`username`, `password`, `fullname`, `email`, `class_name`, 
 -- 4 BỘ MÔN CHÍNH
 -- ==========================================================
 INSERT INTO `subjects` (`id`, `code`, `name`, `description`, `icon`, `color_theme`, `gradient`) VALUES
-(1, 'TOAN', 'Toán Học', '22 câu (12 TN • 4 Đ/S • 6 TLN) • 90 phút — Chuẩn đề THPT 2025 (GDPT 2018)', 'fa-square-root-variable', 'blue', 'from-blue-600 to-indigo-600'),
+(1, 'TOAN', 'Toán Học', '22 câu (12 TN • 4 Đ/S • 6 TLN) • 90 phút — Chuẩn đề THPT 2026', 'fa-square-root-variable', 'blue', 'from-blue-600 to-indigo-600'),
 (2, 'ANH', 'Tiếng Anh', '40 câu • 50 phút • 0.25đ/câu — Chuẩn đề thi tốt nghiệp THPT 2026', 'fa-earth-americas', 'emerald', 'from-emerald-500 to-teal-600'),
-(3, 'LY', 'Vật Lý', '28 câu (18 TN • 4 Đ/S • 6 TLN) • 50 phút — Chuẩn đề THPT 2025 (GDPT 2018)', 'fa-atom', 'amber', 'from-amber-500 to-orange-600'),
-(4, 'HOA', 'Hóa Học', '28 câu (18 TN • 4 Đ/S • 6 TLN) • 50 phút — Chuẩn đề THPT 2025 (GDPT 2018)', 'fa-flask-vial', 'rose', 'from-rose-500 to-pink-600');
+(3, 'LY', 'Vật Lý', '28 câu (18 TN • 4 Đ/S • 6 TLN) • 50 phút — Chuẩn đề THPT 2026', 'fa-atom', 'amber', 'from-amber-500 to-orange-600'),
+(4, 'HOA', 'Hóa Học', '28 câu (18 TN • 4 Đ/S • 6 TLN) • 50 phút — Chuẩn đề THPT 2026', 'fa-flask-vial', 'rose', 'from-rose-500 to-pink-600');
 
 -- ==========================================================
--- 8 ĐỀ THI CHUẨN THPT QUỐC GIA (GDPT 2018)
+-- 8 ĐỀ THI CHUẨN THPT QUỐC GIA
 -- ==========================================================
 INSERT INTO `exams` (`id`, `subject_id`, `title`, `description`, `duration_minutes`, `level`, `is_active`) VALUES
-(1, 1, 'Đề Thi Thử THPT Quốc Gia 2025 Môn Toán - Đề Số 01', '22 câu – 90 phút chuẩn cấu trúc mới 2025: Phần I (12 câu TN ABCD - 3.0đ), Phần II (4 câu Đúng/Sai - 4.0đ), Phần III (6 câu Trả lời ngắn - 3.0đ).', 90, 'Chuẩn THPT QG', 1),
-(2, 1, 'Đề Thi Thử THPT Quốc Gia 2025 Môn Toán - Đề Số 02', '22 câu – 90 phút chuẩn cấu trúc mới 2025: Hàm số, Tích phân, Thống kê ghép nhóm, Xác suất có điều kiện - Bayes, Hình không gian & Oxyz.', 90, 'Chuẩn THPT QG', 1),
+(1, 1, 'Đề Thi Thử THPT Quốc Gia 2026 Môn Toán - Đề Số 01', '22 câu – 90 phút chuẩn cấu trúc mới 2026: Phần I (12 câu TN ABCD - 3.0đ), Phần II (4 câu Đúng/Sai - 4.0đ), Phần III (6 câu Trả lời ngắn - 3.0đ).', 90, 'Chuẩn THPT QG', 1),
+(2, 1, 'Đề Thi Thử THPT Quốc Gia 2026 Môn Toán - Đề Số 02', '22 câu – 90 phút chuẩn cấu trúc mới 2026: Hàm số, Tích phân, Thống kê ghép nhóm, Xác suất có điều kiện - Bayes, Hình không gian & Oxyz.', 90, 'Chuẩn THPT QG', 1),
 (3, 2, 'Đề Thi Thử THPT Quốc Gia 2026 Môn Tiếng Anh - Đề Số 01', '40 câu – 50 phút (0.25đ/câu). Bám sát cấu trúc mới: Đọc điền quảng cáo, tờ rơi, sắp xếp hội thoại/đoạn văn, điền khuyết ngữ cảnh và 2 bài đọc hiểu.', 50, 'Chuẩn THPT QG', 1),
 (4, 2, 'Đề Thi Thử THPT Quốc Gia 2026 Môn Tiếng Anh - Đề Số 02', '40 câu – 50 phút (0.25đ/câu). Tổng hợp Phát âm, Trọng âm, Ngữ pháp trọng tâm, Đồng/Trái nghĩa, Tìm lỗi sai, Viết lại câu và Đọc hiểu.', 50, 'Chuẩn THPT QG', 1),
-(5, 3, 'Đề Thi Thử THPT Quốc Gia 2025 Môn Vật Lý - Đề Số 01', '28 câu – 50 phút chuẩn cấu trúc mới 2025: Phần I (18 câu TN ABCD - 4.5đ), Phần II (4 câu Đúng/Sai - 4.0đ), Phần III (6 câu Trả lời ngắn - 1.5đ).', 50, 'Chuẩn THPT QG', 1),
-(6, 3, 'Đề Thi Thử THPT Quốc Gia 2025 Môn Vật Lý - Đề Số 02', '28 câu – 50 phút chuẩn cấu trúc mới 2025: Vật lý nhiệt, Khí lí tưởng, Dao động & Sóng, Từ trường, Điện xoay chiều & Hạt nhân (GDPT 2018).', 50, 'Chuẩn THPT QG', 1),
-(7, 4, 'Đề Thi Thử THPT Quốc Gia 2025 Môn Hóa Học - Đề Số 01', '28 câu – 50 phút chuẩn cấu trúc mới 2025: Phần I (18 câu TN ABCD - 4.5đ), Phần II (4 câu Đúng/Sai - 4.0đ), Phần III (6 câu Trả lời ngắn - 1.5đ).', 50, 'Chuẩn THPT QG', 1),
-(8, 4, 'Đề Thi Thử THPT Quốc Gia 2025 Môn Hóa Học - Đề Số 02', '28 câu – 50 phút chuẩn cấu trúc mới 2025 (ĐKC 24.79 lít/mol): Este-Lipit, Cacbohidrat, Amin-Peptit, Pin điện hóa, Phức chất & Kim loại.', 50, 'Chuẩn THPT QG', 1);
+(5, 3, 'Đề Thi Thử THPT Quốc Gia 2026 Môn Vật Lý - Đề Số 01', '28 câu – 50 phút chuẩn cấu trúc mới 2026: Phần I (18 câu TN ABCD - 4.5đ), Phần II (4 câu Đúng/Sai - 4.0đ), Phần III (6 câu Trả lời ngắn - 1.5đ).', 50, 'Chuẩn THPT QG', 1),
+(6, 3, 'Đề Thi Thử THPT Quốc Gia 2026 Môn Vật Lý - Đề Số 02', '28 câu – 50 phút chuẩn cấu trúc mới 2026: Vật lý nhiệt, Khí lí tưởng, Dao động & Sóng, Từ trường, Điện xoay chiều & Hạt nhân.', 50, 'Chuẩn THPT QG', 1),
+(7, 4, 'Đề Thi Thử THPT Quốc Gia 2026 Môn Hóa Học - Đề Số 01', '28 câu – 50 phút chuẩn cấu trúc mới 2026: Phần I (18 câu TN ABCD - 4.5đ), Phần II (4 câu Đúng/Sai - 4.0đ), Phần III (6 câu Trả lời ngắn - 1.5đ).', 50, 'Chuẩn THPT QG', 1),
+(8, 4, 'Đề Thi Thử THPT Quốc Gia 2026 Môn Hóa Học - Đề Số 02', '28 câu – 50 phút chuẩn cấu trúc mới 2026 (ĐKC 24.79 lít/mol): Este-Lipit, Cacbohidrat, Amin-Peptit, Pin điện hóa, Phức chất & Kim loại.', 50, 'Chuẩn THPT QG', 1);
 
 -- ==========================================================
 -- MÔN TOÁN - ĐỀ SỐ 01 (exam_id = 1): 22 CÂU - 90 PHÚT - TỔNG 10.00 ĐIỂM
@@ -507,18 +507,18 @@ INSERT INTO `exam_attempts` (`id`, `user_id`, `exam_id`, `score`, `correct_count
 -- THÊM 12 ĐỀ THI MỚI (MỖI MÔN THÊM 3 ĐỀ -> TỔNG 5 ĐỀ / MÔN)
 -- ==========================================================
 INSERT INTO `exams` (`id`, `subject_id`, `title`, `description`, `duration_minutes`, `level`, `is_active`) VALUES
-(9, 1, 'Đề Thi Thử THPT Quốc Gia 2025 Môn Toán - Đề Số 03', '22 câu – 90 phút chuẩn cấu trúc mới 2025: Giải tích, Hình học không gian, Oxyz, Thống kê & Xác suất có điều kiện.', 90, 'Chuẩn THPT QG', 1),
-(10, 1, 'Đề Thi Thử THPT Quốc Gia 2025 Môn Toán - Đề Số 04', '22 câu – 90 phút chuẩn cấu trúc mới 2025: Ứng dụng đạo hàm, Tích phân, Hình Oxyz & Bài toán thực tế.', 90, 'Chuẩn THPT QG', 1),
-(11, 1, 'Đề Thi Thử THPT Quốc Gia 2025 Môn Toán - Đề Số 05', '22 câu – 90 phút chuẩn cấu trúc mới 2025: Tổng ôn chuyên sâu chuẩn ma trận Bộ GD&ĐT (GDPT 2018).', 90, 'Chuẩn THPT QG', 1),
+(9, 1, 'Đề Thi Thử THPT Quốc Gia 2026 Môn Toán - Đề Số 03', '22 câu – 90 phút chuẩn cấu trúc mới 2026: Giải tích, Hình học không gian, Oxyz, Thống kê & Xác suất có điều kiện.', 90, 'Chuẩn THPT QG', 1),
+(10, 1, 'Đề Thi Thử THPT Quốc Gia 2026 Môn Toán - Đề Số 04', '22 câu – 90 phút chuẩn cấu trúc mới 2026: Ứng dụng đạo hàm, Tích phân, Hình Oxyz & Bài toán thực tế.', 90, 'Chuẩn THPT QG', 1),
+(11, 1, 'Đề Thi Thử THPT Quốc Gia 2026 Môn Toán - Đề Số 05', '22 câu – 90 phút chuẩn cấu trúc mới 2026: Tổng ôn chuyên sâu chuẩn ma trận Bộ GD&ĐT.', 90, 'Chuẩn THPT QG', 1),
 (12, 2, 'Đề Thi Thử THPT Quốc Gia 2026 Môn Tiếng Anh - Đề Số 03', '40 câu – 50 phút (0.25đ/câu). Phát âm, Trọng âm, Ngữ pháp, Từ vựng, Sắp xếp hội thoại & Đọc hiểu.', 50, 'Chuẩn THPT QG', 1),
 (13, 2, 'Đề Thi Thử THPT Quốc Gia 2026 Môn Tiếng Anh - Đề Số 04', '40 câu – 50 phút (0.25đ/câu). Luyện chuyên sâu Đọc điền, Tìm lỗi sai, Viết lại câu & Đọc hiểu.', 50, 'Chuẩn THPT QG', 1),
 (14, 2, 'Đề Thi Thử THPT Quốc Gia 2026 Môn Tiếng Anh - Đề Số 05', '40 câu – 50 phút (0.25đ/câu). Đề tổng hợp chuẩn cấu trúc thi tốt nghiệp THPT 2026.', 50, 'Chuẩn THPT QG', 1),
-(15, 3, 'Đề Thi Thử THPT Quốc Gia 2025 Môn Vật Lý - Đề Số 03', '28 câu – 50 phút chuẩn cấu trúc mới 2025: Vật lý nhiệt, Khí lí tưởng, Từ trường & Hạt nhân.', 50, 'Chuẩn THPT QG', 1),
-(16, 3, 'Đề Thi Thử THPT Quốc Gia 2025 Môn Vật Lý - Đề Số 04', '28 câu – 50 phút chuẩn cấu trúc mới 2025: Dao động, Sóng, Cảm ứng điện từ & Phóng xạ.', 50, 'Chuẩn THPT QG', 1),
-(17, 3, 'Đề Thi Thử THPT Quốc Gia 2025 Môn Vật Lý - Đề Số 05', '28 câu – 50 phút chuẩn cấu trúc mới 2025: Tổng hợp chuẩn ma trận Bộ GD&ĐT (GDPT 2018).', 50, 'Chuẩn THPT QG', 1),
-(18, 4, 'Đề Thi Thử THPT Quốc Gia 2025 Môn Hóa Học - Đề Số 03', '28 câu – 50 phút chuẩn cấu trúc mới 2025 (ĐKC 24.79 lít/mol): Este, Cacbohidrat, Amin & Pin điện.', 50, 'Chuẩn THPT QG', 1),
-(19, 4, 'Đề Thi Thử THPT Quốc Gia 2025 Môn Hóa Học - Đề Số 04', '28 câu – 50 phút chuẩn cấu trúc mới 2025 (ĐKC 24.79 lít/mol): Peptit, Polime, Phức chất & Kim loại.', 50, 'Chuẩn THPT QG', 1),
-(20, 4, 'Đề Thi Thử THPT Quốc Gia 2025 Môn Hóa Học - Đề Số 05', '28 câu – 50 phút chuẩn cấu trúc mới 2025 (ĐKC 24.79 lít/mol): Tổng hợp vô cơ - hữu cơ GDPT 2018.', 50, 'Chuẩn THPT QG', 1);
+(15, 3, 'Đề Thi Thử THPT Quốc Gia 2026 Môn Vật Lý - Đề Số 03', '28 câu – 50 phút chuẩn cấu trúc mới 2026: Vật lý nhiệt, Khí lí tưởng, Từ trường & Hạt nhân.', 50, 'Chuẩn THPT QG', 1),
+(16, 3, 'Đề Thi Thử THPT Quốc Gia 2026 Môn Vật Lý - Đề Số 04', '28 câu – 50 phút chuẩn cấu trúc mới 2026: Dao động, Sóng, Cảm ứng điện từ & Phóng xạ.', 50, 'Chuẩn THPT QG', 1),
+(17, 3, 'Đề Thi Thử THPT Quốc Gia 2026 Môn Vật Lý - Đề Số 05', '28 câu – 50 phút chuẩn cấu trúc mới 2026: Tổng hợp chuẩn ma trận Bộ GD&ĐT.', 50, 'Chuẩn THPT QG', 1),
+(18, 4, 'Đề Thi Thử THPT Quốc Gia 2026 Môn Hóa Học - Đề Số 03', '28 câu – 50 phút chuẩn cấu trúc mới 2026 (ĐKC 24.79 lít/mol): Este, Cacbohidrat, Amin & Pin điện.', 50, 'Chuẩn THPT QG', 1),
+(19, 4, 'Đề Thi Thử THPT Quốc Gia 2026 Môn Hóa Học - Đề Số 04', '28 câu – 50 phút chuẩn cấu trúc mới 2026 (ĐKC 24.79 lít/mol): Peptit, Polime, Phức chất & Kim loại.', 50, 'Chuẩn THPT QG', 1),
+(20, 4, 'Đề Thi Thử THPT Quốc Gia 2026 Môn Hóa Học - Đề Số 05', '28 câu – 50 phút chuẩn cấu trúc mới 2026 (ĐKC 24.79 lít/mol): Tổng hợp vô cơ - hữu cơ.', 50, 'Chuẩn THPT QG', 1);
 
 INSERT INTO `questions` (`exam_id`, `question_type`, `question_text`, `option_a`, `option_b`, `option_c`, `option_d`, `correct_option`, `explanation`, `points_value`, `difficulty`, `sort_order`) VALUES
 (9, 'mcq', 'Cho hàm số y = x³ - 3x² + 2. Hàm số nghịch biến trên khoảng nào dưới đây?', '(-∞; 0)', '(2; +∞)', '(-2; 0)', '(0; 2)', 'D', 'y'' = 3x² - 6x < 0 ⇔ 0 < x < 2.', 0.25, 'Nhận biết', 1),

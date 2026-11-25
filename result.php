@@ -41,7 +41,7 @@ $qStmt = $pdo->prepare("
 $qStmt->execute([$attemptId, $attempt['exam_id']]);
 $reviewQuestions = $qStmt->fetchAll();
 
-// Thống kê theo 3 Phần thi Form 2025 & theo 4 mức độ nhận thức
+// Thống kê theo 3 Phần thi Form 2026 & theo 4 mức độ nhận thức
 $partStats = [
     'mcq' => ['count' => 0, 'earned' => 0.0, 'max' => 0.0],
     'true_false' => ['count' => 0, 'earned' => 0.0, 'max' => 0.0],
@@ -85,7 +85,7 @@ foreach ($reviewQuestions as $rq) {
 
 $score = (float)$attempt['score'];
 if ($score >= 8.0) {
-    $rankText = 'Xuất sắc! Rất sẵn sàng cho kỳ thi THPT 2025';
+    $rankText = 'Xuất sắc! Rất sẵn sàng cho kỳ thi THPT 2026';
     $rankColor = 'text-emerald-600 bg-emerald-50 border-emerald-200';
 } elseif ($score >= 6.5) {
     $rankText = 'Khá tốt! Hãy tối ưu thêm phần Đúng/Sai & Trả lời ngắn';
@@ -121,7 +121,7 @@ require_once __DIR__ . '/includes/header.php';
 
                 <!-- Vòng điểm nổi bật -->
                 <div class="bg-white text-slate-900 rounded-3xl px-7 py-5 text-center shadow-lg shrink-0">
-                    <div class="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Tổng điểm (Form 2025)</div>
+                    <div class="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Tổng điểm (Form 2026)</div>
                     <div class="text-4xl font-black text-indigo-600 mt-0.5">
                         <?= number_format($score, 2) ?><span class="text-lg text-slate-400 font-bold">/10</span>
                     </div>
@@ -166,10 +166,10 @@ require_once __DIR__ . '/includes/header.php';
                 </div>
             </div>
 
-            <!-- Phân tích điểm theo 3 Phần thi Form 2025 -->
+            <!-- Phân tích điểm theo 3 Phần thi Form 2026 -->
             <div class="mb-6 pt-5 border-t border-slate-100">
                 <h3 class="text-sm font-extrabold text-slate-800 uppercase tracking-wider mb-3 flex items-center gap-2">
-                    <i class="fa-solid fa-layer-group text-indigo-600"></i> Phân tích điểm theo cấu trúc đề thi mới 2025
+                    <i class="fa-solid fa-layer-group text-indigo-600"></i> Phân tích điểm theo cấu trúc đề thi mới 2026
                 </h3>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <?php foreach ($partStats as $pType => $pData):
@@ -390,23 +390,5 @@ require_once __DIR__ . '/includes/header.php';
         <?php endforeach; ?>
     </div>
 </div>
-
-<script>
-function filterReview(type) {
-    ['all', 'wrong', 'correct'].forEach(t => {
-        const btn = document.getElementById('rev-filter-' + t);
-        if (t === type) {
-            btn.className = 'px-3.5 py-2 rounded-lg bg-indigo-600 text-white transition';
-        } else {
-            btn.className = 'px-3.5 py-2 rounded-lg text-slate-600 hover:text-indigo-600 transition';
-        }
-    });
-
-    document.querySelectorAll('.review-item').forEach(el => {
-        const status = el.getAttribute('data-status');
-        el.style.display = (type === 'all' || status === type) ? 'block' : 'none';
-    });
-}
-</script>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
